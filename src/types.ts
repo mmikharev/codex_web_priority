@@ -5,6 +5,7 @@ export interface Task {
   title: string;
   due?: string | null;
   quadrant: Quadrant;
+  done?: boolean;
 }
 
 export type TaskMap = Record<string, Task>;

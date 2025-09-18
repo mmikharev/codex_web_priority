@@ -1,11 +1,53 @@
-import { TaskMap } from '../types';
+import { Quadrant, Task, TaskMap } from '../types';
 
 const STORAGE_KEY = 'eisenhower_state_v1';
-const CURRENT_VERSION = 1;
+const BACKUP_KEY = `${STORAGE_KEY}_backup_v1`;
+const CURRENT_VERSION = 2;
 
-interface PersistedState {
-  version: number;
+interface PersistedStateV1 {
+  version?: 1;
+  tasks: Record<string, Omit<Task, 'done'>>;
+}
+
+interface PersistedStateV2 {
+  version: 2;
   tasks: TaskMap;
+}
+
+type PersistedState = PersistedStateV1 | PersistedStateV2;
+
+function withDoneFlag(tasks: Record<string, Omit<Task, 'done'> | Task | undefined>): TaskMap {
+  const result: TaskMap = {};
+  Object.entries(tasks ?? {}).forEach(([id, task]) => {
+    if (!task) {
+      return;
+    }
+
+    const { done, quadrant, ...rest } = task as Task & { quadrant?: Quadrant };
+    const normalizedQuadrant: Quadrant = quadrant ?? 'backlog';
+
+    result[id] = {
+      id,
+      title: rest.title ?? id,
+      due: rest.due ?? null,
+      quadrant: normalizedQuadrant,
+      done: done ?? false,
+    };
+  });
+  return result;
+}
+
+function persistBackup(raw: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    if (!window.localStorage.getItem(BACKUP_KEY)) {
+      window.localStorage.setItem(BACKUP_KEY, raw);
+    }
+  } catch (error) {
+    console.warn('Failed to persist backup of legacy state', error);
+  }
 }
 
 export function loadState(): { tasks: TaskMap; error?: Error } {
@@ -24,11 +66,28 @@ export function loadState(): { tasks: TaskMap; error?: Error } {
       throw new Error('Unexpected storage payload');
     }
 
-    if (parsed.version !== CURRENT_VERSION) {
+    if ('version' in parsed) {
+      if (parsed.version === 2) {
+        return { tasks: withDoneFlag(parsed.tasks) };
+      }
+
+      if (parsed.version === 1 || parsed.version === undefined) {
+        persistBackup(raw);
+        return { tasks: withDoneFlag(parsed.tasks) };
+      }
+
       throw new Error('Unsupported storage version');
     }
 
-    return { tasks: parsed.tasks ?? {} };
+    // Legacy payload without version field assumed to be TaskMap
+    if ('tasks' in parsed && typeof parsed.tasks === 'object') {
+      persistBackup(raw);
+      return { tasks: withDoneFlag(parsed.tasks as Record<string, Task>) };
+    }
+
+    // Entire object is assumed to be the raw TaskMap.
+    persistBackup(raw);
+    return { tasks: withDoneFlag(parsed as unknown as Record<string, Task>) };
   } catch (error) {
     return { tasks: {}, error: error instanceof Error ? error : new Error('Unknown storage error') };
   }
@@ -41,7 +100,7 @@ export function saveState(tasks: TaskMap) {
     return;
   }
 
-  const payload: PersistedState = { version: CURRENT_VERSION, tasks };
+  const payload: PersistedStateV2 = { version: CURRENT_VERSION, tasks };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 

@@ -6,12 +6,23 @@ import styles from './BacklogList.module.css';
 
 interface BacklogListProps {
   tasks: Task[];
+  totalCount?: number;
+  hideCompleted: boolean;
+  onHideCompletedChange: (value: boolean) => void;
   onDropTask: (taskId: string) => void;
-  onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null }) => void;
+  onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
 }
 
-export function BacklogList({ tasks, onDropTask, onUpdateTask }: BacklogListProps) {
+export function BacklogList({
+  tasks,
+  totalCount,
+  hideCompleted,
+  onHideCompletedChange,
+  onDropTask,
+  onUpdateTask,
+}: BacklogListProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const displayedCount = totalCount ?? tasks.length;
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -37,8 +48,18 @@ export function BacklogList({ tasks, onDropTask, onUpdateTask }: BacklogListProp
   return (
     <section className={styles.container}>
       <div className={styles.header}>
-        <h2 className={styles.title}>Бэклог</h2>
-        <span className={styles.count}>{tasks.length}</span>
+        <div>
+          <h2 className={styles.title}>Бэклог</h2>
+          <span className={styles.count}>{displayedCount}</span>
+        </div>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={hideCompleted}
+            onChange={(event) => onHideCompletedChange(event.target.checked)}
+          />
+          Скрыть выполненные
+        </label>
       </div>
       <div
         className={`${styles.list} ${isDragOver ? styles.dragOver : ''}`}
@@ -47,7 +68,11 @@ export function BacklogList({ tasks, onDropTask, onUpdateTask }: BacklogListProp
         onDrop={handleDrop}
       >
         {tasks.length === 0 ? (
-          <div className={styles.empty}>Все задачи распределены по квадрантам</div>
+          <div className={styles.empty}>
+            {hideCompleted
+              ? 'Нет задач для отображения. Попробуйте отключить фильтр «Скрыть выполненные».'
+              : 'Все задачи распределены по квадрантам'}
+          </div>
         ) : (
           tasks.map((task) => (
             <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} />

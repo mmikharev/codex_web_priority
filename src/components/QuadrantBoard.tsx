@@ -20,7 +20,7 @@ const QUADRANT_DETAILS: Array<{
 interface QuadrantBoardProps {
   quadrants: Record<QuadrantId, Task[]>;
   onDropTask: (taskId: string, quadrant: QuadrantId) => void;
-  onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null }) => void;
+  onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
 }
 
@@ -38,7 +38,7 @@ function QuadrantZone({
   subtitle: string;
   tasks: Task[];
   onDrop: (taskId: string, quadrant: QuadrantId) => void;
-  onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null }) => void;
+  onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
