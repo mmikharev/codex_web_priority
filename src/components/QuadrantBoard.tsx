@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Quadrant, Task } from '../types';
 import { getTaskIdFromDrag } from '../utils/dnd';
 import { TaskCard } from './TaskCard';
@@ -42,6 +42,86 @@ function QuadrantZone({
   onResetTask: (taskId: string) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const dropAreaRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const dropArea = dropAreaRef.current;
+    if (!dropArea || typeof window === 'undefined') {
+      return;
+    }
+
+    const hasResizeObserver = typeof window.ResizeObserver !== 'undefined';
+    const hasMutationObserver = typeof window.MutationObserver !== 'undefined';
+
+    const updateMaxHeight = () => {
+      if (!dropArea) {
+        return;
+      }
+
+      const cards = Array.from(dropArea.querySelectorAll<HTMLElement>('[data-task-id]'));
+      const limit = Math.min(cards.length, 3);
+
+      if (limit === 0) {
+        dropArea.style.removeProperty('--quadrant-max-height');
+        return;
+      }
+
+      let totalHeight = 0;
+      for (let index = 0; index < limit; index += 1) {
+        const card = cards[index];
+        totalHeight += card.getBoundingClientRect().height;
+        if (index < limit - 1) {
+          totalHeight += parseFloat(window.getComputedStyle(card).marginBottom || '0');
+        }
+      }
+
+      const areaStyles = window.getComputedStyle(dropArea);
+      const verticalChrome =
+        parseFloat(areaStyles.paddingTop || '0') +
+        parseFloat(areaStyles.paddingBottom || '0') +
+        parseFloat(areaStyles.borderTopWidth || '0') +
+        parseFloat(areaStyles.borderBottomWidth || '0');
+
+      dropArea.style.setProperty('--quadrant-max-height', `${Math.ceil(totalHeight + verticalChrome)}px`);
+    };
+
+    updateMaxHeight();
+
+    if (!hasResizeObserver) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateMaxHeight();
+    });
+
+    const observeElements = () => {
+      resizeObserver.disconnect();
+      resizeObserver.observe(dropArea);
+      const cards = Array.from(dropArea.querySelectorAll<HTMLElement>('[data-task-id]'));
+      cards.forEach((card) => resizeObserver.observe(card));
+    };
+
+    observeElements();
+
+    if (hasMutationObserver) {
+      const mutationObserver = new MutationObserver(() => {
+        observeElements();
+        updateMaxHeight();
+      });
+
+      mutationObserver.observe(dropArea, { childList: true, subtree: true });
+
+      return () => {
+        resizeObserver.disconnect();
+        mutationObserver.disconnect();
+      };
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [tasks]);
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -69,6 +149,7 @@ function QuadrantZone({
         <p className={styles.zoneSubtitle}>{subtitle}</p>
       </header>
       <div
+        ref={dropAreaRef}
         className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
