@@ -1,5 +1,9 @@
 const LOOSE_DATE_REGEX = /^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})(?:\s+at\s+(\d{1,2}):(\d{2}))?$/i;
 
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
 export function parseLooseDate(input: string | null | undefined): Date | null {
   if (!input) {
     return null;
@@ -55,4 +59,32 @@ export function formatDate(value: string | null | undefined): string {
     console.error('Failed to format date', error);
     return value;
   }
+}
+
+export function toDateTimeLocalInputValue(value: string | null | undefined): string {
+  const parsed = parseLooseDate(value);
+  if (!parsed) {
+    return '';
+  }
+
+  const year = parsed.getFullYear();
+  const month = pad(parsed.getMonth() + 1);
+  const day = pad(parsed.getDate());
+  const hours = pad(parsed.getHours());
+  const minutes = pad(parsed.getMinutes());
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function fromDateTimeLocalInput(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = parseLooseDate(value);
+  if (!parsed) {
+    return null;
+  }
+
+  return parsed.toISOString();
 }

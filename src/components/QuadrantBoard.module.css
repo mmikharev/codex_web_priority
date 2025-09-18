@@ -18,7 +18,6 @@
   border: 1px solid rgba(255, 255, 255, 0.45);
   padding: 18px;
   box-shadow: 0 30px 60px -45px rgba(15, 23, 42, 0.5);
-  min-height: 280px;
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(30px) saturate(140%);
@@ -84,6 +83,7 @@
   transition: border-color 0.2s ease, background 0.2s ease;
   background: rgba(255, 255, 255, 0.16);
   overflow: auto;
+  max-height: var(--quadrant-max-height, none);
 }
 
 .dragOver {
