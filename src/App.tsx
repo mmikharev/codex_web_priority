@@ -49,9 +49,12 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [manualFormQuadrant, setManualFormQuadrant] = useState<Quadrant>('backlog');
+  const [manualFormFocusToken, setManualFormFocusToken] = useState(0);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const importTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const manualFormRef = useRef<HTMLFormElement>(null);
 
   const backlogTasks = quadrants.backlog ?? [];
   const filteredBacklog = useMemo(
@@ -131,6 +134,19 @@ export default function App() {
   const handleHideCompletedChange = useCallback((value: boolean) => {
     setHideCompleted(value);
   }, []);
+
+  const handleQuadrantCreateRequest = useCallback(
+    (quadrant: QuadrantId) => {
+      setManualFormQuadrant(quadrant);
+      setManualFormFocusToken((token) => token + 1);
+      if (typeof window !== 'undefined') {
+        window.requestAnimationFrame(() => {
+          manualFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      }
+    },
+    [manualFormRef],
+  );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -243,7 +259,12 @@ export default function App() {
             onClear={handleClearFilter}
             inputRef={searchInputRef}
           />
-          <ManualTaskForm onCreateTask={handleCreateTask} />
+          <ManualTaskForm
+            ref={manualFormRef}
+            onCreateTask={handleCreateTask}
+            initialQuadrant={manualFormQuadrant}
+            focusTrigger={manualFormFocusToken}
+          />
           <p className={styles.hotkeysHint}>
             Горячие клавиши: / — поиск, i — импорт, Esc — очистить поиск, 0–4 — перемещение задач
           </p>
@@ -264,6 +285,7 @@ export default function App() {
           onDropTask={handleQuadrantDrop}
           onUpdateTask={handleUpdateTask}
           onResetTask={resetTask}
+          onRequestCreateTask={handleQuadrantCreateRequest}
         />
       </div>
     </div>

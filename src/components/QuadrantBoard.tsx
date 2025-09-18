@@ -22,6 +22,7 @@ interface QuadrantBoardProps {
   onDropTask: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
+  onRequestCreateTask?: (quadrant: QuadrantId) => void;
 }
 
 function QuadrantZone({
@@ -32,6 +33,7 @@ function QuadrantZone({
   onDrop,
   onUpdateTask,
   onResetTask,
+  onRequestCreateTask,
 }: {
   quadrant: QuadrantId;
   title: string;
@@ -40,6 +42,7 @@ function QuadrantZone({
   onDrop: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
+  onRequestCreateTask?: (quadrant: QuadrantId) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const dropAreaRef = useRef<HTMLDivElement>(null);
@@ -163,11 +166,21 @@ function QuadrantZone({
           ))
         )}
       </div>
+      {quadrant === 'Q4' && onRequestCreateTask ? (
+        <button
+          type="button"
+          className={styles.addButton}
+          aria-label="Добавить задачу в квадрант Q4"
+          onClick={() => onRequestCreateTask(quadrant)}
+        >
+          + Добавить задачу
+        </button>
+      ) : null}
     </section>
   );
 }
 
-export function QuadrantBoard({ quadrants, onDropTask, onUpdateTask, onResetTask }: QuadrantBoardProps) {
+export function QuadrantBoard({ quadrants, onDropTask, onUpdateTask, onResetTask, onRequestCreateTask }: QuadrantBoardProps) {
   return (
     <div className={styles.board}>
       {QUADRANT_DETAILS.map(({ id, title, subtitle }) => (
@@ -180,6 +193,7 @@ export function QuadrantBoard({ quadrants, onDropTask, onUpdateTask, onResetTask
           onDrop={onDropTask}
           onUpdateTask={onUpdateTask}
           onResetTask={onResetTask}
+          onRequestCreateTask={onRequestCreateTask}
         />
       ))}
     </div>

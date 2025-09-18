@@ -61,6 +61,42 @@ describe('useTaskStore importTasks', () => {
     });
   });
 
+  it('imports quadrant-grouped maps into the correct categories', () => {
+    const { result } = renderHook(() => useTaskStore());
+
+    act(() => {
+      const summary = result.current.importTasks(
+        JSON.stringify({
+          Q1: { urgent: '1. 10. 2025 at 0:00' },
+          Q4: { relax: '' },
+        }),
+        { resetQuadrants: false },
+      );
+      expect(summary).toMatchObject({ added: 2, updated: 0, total: 2 });
+    });
+
+    expect(result.current.tasks.urgent).toMatchObject({
+      quadrant: 'Q1',
+      due: '1. 10. 2025 at 0:00',
+    });
+    expect(result.current.tasks.relax).toMatchObject({
+      quadrant: 'Q4',
+      due: null,
+    });
+
+    act(() => {
+      const summary = result.current.importTasks(
+        JSON.stringify({
+          Q2: { urgent: '' },
+        }),
+        { resetQuadrants: false },
+      );
+      expect(summary).toMatchObject({ added: 0, updated: 1, total: 1 });
+    });
+
+    expect(result.current.tasks.urgent).toMatchObject({ quadrant: 'Q2', due: null });
+  });
+
   it('restores state from exported payload without data loss', () => {
     const first = renderHook(() => useTaskStore());
 
