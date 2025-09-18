@@ -41,7 +41,7 @@ export function ImportPanel({ value, onChange, onImport, onExport, feedback, err
         id="import-json"
         ref={textareaRef}
         className={styles.textarea}
-        placeholder='{"Task title": "1. 10. 2025 at 0:00"}'
+        placeholder='{"version":2,"tasks":{"Task":{"title":"Task","due":"1. 10. 2025 at 0:00","quadrant":"Q1","done":false}}}'
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -58,7 +58,7 @@ export function ImportPanel({ value, onChange, onImport, onExport, feedback, err
         </div>
         <div className={styles.buttons}>
           <button className={styles.secondaryButton} type="button" onClick={handleExport}>
-            Экспорт
+            Экспорт JSON
           </button>
           <button
             className={styles.primaryButton}

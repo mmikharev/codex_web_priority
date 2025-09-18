@@ -6,7 +6,8 @@ import { SearchBar } from './components/SearchBar';
 import styles from './App.module.css';
 import { useTaskStore } from './hooks/useTaskStore';
 import { parseLooseDate } from './utils/date';
-import { Quadrant, Task, TaskMap } from './types';
+import { Quadrant, Task } from './types';
+import { createExportPayload } from './utils/export';
 
 type QuadrantId = Exclude<Quadrant, 'backlog'>;
 
@@ -29,30 +30,23 @@ function sortBacklog(tasks: Task[]): Task[] {
   });
 }
 
-function filterBacklog(tasks: Task[], query: string): Task[] {
-  if (!query.trim()) {
-    return sortBacklog(tasks);
-  }
-
+function filterBacklog(tasks: Task[], query: string, hideCompleted: boolean): Task[] {
   const normalized = query.trim().toLowerCase();
-  const filtered = tasks.filter((task) => {
-    const haystack = `${task.title} ${task.due ?? ''}`.toLowerCase();
-    return haystack.includes(normalized);
-  });
 
-  return sortBacklog(filtered);
-}
+  return sortBacklog(
+    tasks.filter((task) => {
+      if (hideCompleted && task.done) {
+        return false;
+      }
 
-function buildExportPayload(tasks: TaskMap) {
-  const payload: Record<string, { title: string; due: string | null; quadrant: Quadrant }> = {};
-  Object.values(tasks).forEach((task) => {
-    payload[task.id] = {
-      title: task.title,
-      due: task.due ?? null,
-      quadrant: task.quadrant,
-    };
-  });
-  return payload;
+      if (!normalized) {
+        return true;
+      }
+
+      const haystack = `${task.title} ${task.due ?? ''}`.toLowerCase();
+      return haystack.includes(normalized);
+    }),
+  );
 }
 
 export default function App() {
@@ -71,12 +65,16 @@ export default function App() {
   const [importFeedback, setImportFeedback] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [hideCompleted, setHideCompleted] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const importTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const backlogTasks = quadrants.backlog ?? [];
-  const filteredBacklog = useMemo(() => filterBacklog(backlogTasks, searchQuery), [backlogTasks, searchQuery]);
+  const filteredBacklog = useMemo(
+    () => filterBacklog(backlogTasks, searchQuery, hideCompleted),
+    [backlogTasks, hideCompleted, searchQuery],
+  );
 
   const handleImport = useCallback(
     (jsonText: string, options: { resetQuadrants: boolean }) => {
@@ -112,57 +110,104 @@ export default function App() {
   );
 
   const handleUpdateTask = useCallback(
-    (taskId: string, updates: { title?: string; due?: string | null }) => {
+    (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => {
       updateTask(taskId, updates);
     },
     [updateTask],
   );
 
   const handleExport = useCallback(() => {
-    const exportPayload = buildExportPayload(tasks);
-    const json = JSON.stringify({ tasks: exportPayload }, null, 2);
+    const exportPayload = createExportPayload(tasks);
+    const json = JSON.stringify(exportPayload, null, 2);
 
-    const copyToClipboard = async () => {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(json);
-        setImportFeedback('JSON сохранён в буфер обмена');
-      } else {
-        throw new Error('Clipboard API is unavailable');
-      }
-    };
-
-    copyToClipboard().catch(() => {
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'eisenhower-matrix.json';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setImportFeedback('JSON скачан как файл eisenhower-matrix.json');
-    });
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const now = new Date();
+    const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    link.href = url;
+    link.download = `eisenhower-export-${datePart}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setImportFeedback('JSON экспортирован в файл');
   }, [tasks]);
 
   const handleClearFilter = useCallback(() => {
     setSearchQuery('');
   }, []);
 
+  const handleHideCompletedChange = useCallback((value: boolean) => {
+    setHideCompleted(value);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.shiftKey) {
-        const key = event.key.toLowerCase();
-        if (key === 'f') {
-          event.preventDefault();
-          searchInputRef.current?.focus();
-        } else if (key === 'i') {
-          event.preventDefault();
-          importTextareaRef.current?.focus();
-        } else if (key === 'c') {
+      const key = event.key;
+      const normalizedKey = key.toLowerCase();
+      const target = event.target as HTMLElement | null;
+      const isEditableTarget =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        if (normalizedKey === 'escape' && searchQuery) {
           event.preventDefault();
           setSearchQuery('');
         }
+        return;
+      }
+
+      if (normalizedKey === '/') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (normalizedKey === 'escape') {
+        if (searchQuery) {
+          event.preventDefault();
+          setSearchQuery('');
+        }
+        return;
+      }
+
+      if (isEditableTarget) {
+        return;
+      }
+
+      if (normalizedKey === 'i') {
+        event.preventDefault();
+        importTextareaRef.current?.focus();
+        importTextareaRef.current?.select?.();
+        return;
+      }
+
+      if (['0', '1', '2', '3', '4'].includes(key)) {
+        const activeElement = document.activeElement as HTMLElement | null;
+        const taskId = activeElement?.dataset.taskId;
+        if (!taskId) {
+          return;
+        }
+
+        const targetQuadrant: Quadrant =
+          key === '0'
+            ? 'backlog'
+            : key === '1'
+            ? 'Q1'
+            : key === '2'
+            ? 'Q2'
+            : key === '3'
+            ? 'Q3'
+            : 'Q4';
+
+        event.preventDefault();
+        moveTask(taskId, targetQuadrant);
       }
     };
 
@@ -170,7 +215,7 @@ export default function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [moveTask, searchQuery]);
 
   useEffect(() => {
     if (!importText) {
@@ -209,9 +254,16 @@ export default function App() {
             inputRef={searchInputRef}
           />
           <p className={styles.hotkeysHint}>
-            Горячие клавиши: Ctrl+Shift+F — поиск, Ctrl+Shift+I — импорт, Ctrl+Shift+C — очистить фильтр
+            Горячие клавиши: / — поиск, i — импорт, Esc — очистить поиск, 0–4 — перемещение задач
           </p>
-          <BacklogList tasks={filteredBacklog} onDropTask={handleBacklogDrop} onUpdateTask={handleUpdateTask} />
+          <BacklogList
+            tasks={filteredBacklog}
+            totalCount={backlogTasks.length}
+            hideCompleted={hideCompleted}
+            onHideCompletedChange={handleHideCompletedChange}
+            onDropTask={handleBacklogDrop}
+            onUpdateTask={handleUpdateTask}
+          />
         </div>
       </div>
 
