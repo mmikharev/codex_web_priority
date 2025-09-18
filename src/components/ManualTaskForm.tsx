@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Quadrant } from '../types';
-import { parseLooseDate } from '../utils/date';
+import { fromDateTimeLocalInput } from '../utils/date';
 import styles from './ManualTaskForm.module.css';
 
 interface ManualTaskFormProps {
@@ -51,15 +51,16 @@ export function ManualTaskForm({ onCreateTask }: ManualTaskFormProps) {
     }
 
     const normalizedDue = due.trim();
-    if (normalizedDue && !parseLooseDate(normalizedDue)) {
-      setError('Используйте формат 1. 10. 2025 at 0:00');
+    const dueIso = normalizedDue ? fromDateTimeLocalInput(normalizedDue) : null;
+    if (normalizedDue && !dueIso) {
+      setError('Выберите корректную дату и время');
       setErrorField('due');
       return;
     }
 
     setError(null);
     setErrorField(null);
-    onCreateTask({ title: normalizedTitle, due: normalizedDue || null, quadrant });
+    onCreateTask({ title: normalizedTitle, due: dueIso, quadrant });
     resetForm();
     setFeedback('Задача добавлена');
   };
@@ -89,6 +90,7 @@ export function ManualTaskForm({ onCreateTask }: ManualTaskFormProps) {
       <label className={styles.label}>
         Дата и время
         <input
+          type="datetime-local"
           className={styles.input}
           value={due}
           onChange={(event) => {
@@ -98,7 +100,7 @@ export function ManualTaskForm({ onCreateTask }: ManualTaskFormProps) {
             }
             setDue(event.target.value);
           }}
-          placeholder="1. 10. 2025 at 0:00"
+          step={60}
           aria-invalid={errorField === 'due' ? 'true' : 'false'}
         />
       </label>

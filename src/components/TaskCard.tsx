@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Task } from '../types';
-import { formatDate, parseLooseDate } from '../utils/date';
+import { formatDate, fromDateTimeLocalInput, toDateTimeLocalInputValue } from '../utils/date';
 import { setTaskDragData } from '../utils/dnd';
 import styles from './TaskCard.module.css';
 
@@ -13,7 +13,7 @@ interface TaskCardProps {
 export function TaskCard({ task, onUpdate, onReset }: TaskCardProps) {
   const [editingField, setEditingField] = useState<'title' | 'due' | null>(null);
   const [draftTitle, setDraftTitle] = useState(task.title);
-  const [draftDue, setDraftDue] = useState(task.due ?? '');
+  const [draftDue, setDraftDue] = useState(() => toDateTimeLocalInputValue(task.due));
   const [titleError, setTitleError] = useState<string | null>(null);
   const [dueError, setDueError] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -28,7 +28,7 @@ export function TaskCard({ task, onUpdate, onReset }: TaskCardProps) {
 
   useEffect(() => {
     if (editingField !== 'due') {
-      setDraftDue(task.due ?? '');
+      setDraftDue(toDateTimeLocalInputValue(task.due));
     }
   }, [editingField, task.due]);
 
@@ -105,13 +105,14 @@ export function TaskCard({ task, onUpdate, onReset }: TaskCardProps) {
       return true;
     }
 
-    if (!parseLooseDate(value)) {
-      setDueError('Используйте формат DD. M. YYYY at HH:MM');
+    const normalized = fromDateTimeLocalInput(value);
+    if (!normalized) {
+      setDueError('Выберите корректную дату и время');
       return false;
     }
 
-    if (value !== (task.due ?? '')) {
-      onUpdate(task.id, { due: value });
+    if (normalized !== (task.due ?? '')) {
+      onUpdate(task.id, { due: normalized });
     }
 
     setDueError(null);
@@ -126,7 +127,7 @@ export function TaskCard({ task, onUpdate, onReset }: TaskCardProps) {
   };
 
   const cancelDueEditing = () => {
-    setDraftDue(task.due ?? '');
+    setDraftDue(toDateTimeLocalInputValue(task.due));
     setDueError(null);
     setEditingField(null);
   };
@@ -227,11 +228,12 @@ export function TaskCard({ task, onUpdate, onReset }: TaskCardProps) {
             <input
               ref={dueInputRef}
               className={`${styles.input} ${dueError ? styles.inputError : ''}`.trim()}
+              type="datetime-local"
               value={draftDue}
               onChange={(event) => setDraftDue(event.target.value)}
               onBlur={handleDueBlur}
               onKeyDown={handleDueKeyDown}
-              placeholder="1. 10. 2025 at 0:00"
+              step={60}
               data-task-editor="due"
             />
             {dueError ? <div className={styles.error}>{dueError}</div> : null}

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, parseLooseDate } from './date';
+import {
+  formatDate,
+  fromDateTimeLocalInput,
+  parseLooseDate,
+  toDateTimeLocalInputValue,
+} from './date';
 
 describe('parseLooseDate', () => {
   it('parses DD. M. YYYY at HH:MM format', () => {
@@ -28,5 +33,20 @@ describe('formatDate', () => {
   it('returns placeholder for empty input', () => {
     expect(formatDate('')).toBe('Без даты');
     expect(formatDate(null)).toBe('Без даты');
+  });
+});
+
+describe('date-time local helpers', () => {
+  it('converts between ISO string and input value', () => {
+    const inputValue = '2025-10-01T15:45';
+    const isoValue = fromDateTimeLocalInput(inputValue);
+    expect(isoValue).toBeTypeOf('string');
+    expect(isoValue).not.toBeNull();
+    expect(toDateTimeLocalInputValue(isoValue)).toBe(inputValue);
+  });
+
+  it('handles invalid values', () => {
+    expect(fromDateTimeLocalInput('not a date')).toBeNull();
+    expect(toDateTimeLocalInputValue('not a date')).toBe('');
   });
 });
