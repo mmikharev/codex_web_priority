@@ -1,5 +1,4 @@
 import { Quadrant, Task, TaskMap } from '../types';
-import { sanitizeNotesHtml } from './notes';
 
 const STORAGE_KEY = 'eisenhower_state_v1';
 const BACKUP_KEY = `${STORAGE_KEY}_backup_v1`;
@@ -27,8 +26,6 @@ function withDoneFlag(tasks: Record<string, Omit<Task, 'done'> | Task | undefine
     const { done, quadrant, ...rest } = task as Task & { quadrant?: Quadrant };
     const normalizedQuadrant: Quadrant = quadrant ?? 'backlog';
 
-    const sanitizedNotes = sanitizeNotesHtml((task as Task).notes ?? null);
-
     result[id] = {
       id,
       title: rest.title ?? id,
@@ -36,10 +33,6 @@ function withDoneFlag(tasks: Record<string, Omit<Task, 'done'> | Task | undefine
       quadrant: normalizedQuadrant,
       done: done ?? false,
     };
-
-    if (sanitizedNotes) {
-      result[id].notes = sanitizedNotes;
-    }
   });
   return result;
 }
