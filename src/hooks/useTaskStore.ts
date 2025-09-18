@@ -12,6 +12,12 @@ export interface ImportSummary {
   total: number;
 }
 
+const TRAILING_COMMA_REGEX = /,\s*(?=[}\]])/g;
+
+function sanitizeJson(raw: string): string {
+  return raw.replace(TRAILING_COMMA_REGEX, '');
+}
+
 function normalizeDue(value: string | null | undefined): string | null {
   if (!value) {
     return null;
@@ -35,7 +41,7 @@ export function useTaskStore() {
 
       let payload: unknown;
       try {
-        payload = JSON.parse(rawJson);
+        payload = JSON.parse(sanitizeJson(rawJson));
       } catch (error) {
         throw new Error('Невалидный JSON: ' + (error instanceof Error ? error.message : String(error)));
       }

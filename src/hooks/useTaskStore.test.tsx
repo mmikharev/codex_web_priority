@@ -60,6 +60,21 @@ describe('useTaskStore', () => {
     expect(result.current.tasks.TaskB.quadrant).toBe('backlog');
   });
 
+  it('accepts trailing commas in import JSON', () => {
+    const { result } = renderHook(() => useTaskStore());
+
+    let summary: ImportSummary | undefined;
+    act(() => {
+      summary = result.current.importTasks(`{
+        "TaskA": "1. 10. 2025 at 0:00",
+        "TaskB": "",
+      }`);
+    });
+
+    expect(summary?.added).toBe(2);
+    expect(result.current.tasks.TaskA.due).toBe('1. 10. 2025 at 0:00');
+  });
+
   it('normalises due dates via updateTask', () => {
     const { result } = renderHook(() => useTaskStore());
 
