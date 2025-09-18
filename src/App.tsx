@@ -66,14 +66,20 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [hideCompleted, setHideCompleted] = useState(false);
-  const [collapseState, setCollapseState] = useState<CollapseState>(() => ({
-    backlog: DEFAULT_COLLAPSE_STATE.backlog,
-    quadrants: { ...DEFAULT_COLLAPSE_STATE.quadrants },
-  }));
-  const [collapseLoaded, setCollapseLoaded] = useState(false);
+// manual task creation controls (feature branch)
+const [manualFormQuadrant, setManualFormQuadrant] = useState<Quadrant>('backlog');
+const [manualFormFocusToken, setManualFormFocusToken] = useState(0);
+
+// collapsible UI state (main)
+const [collapseState, setCollapseState] = useState<CollapseState>(() => ({
+  backlog: DEFAULT_COLLAPSE_STATE.backlog,
+  quadrants: { ...DEFAULT_COLLAPSE_STATE.quadrants },
+}));
+const [collapseLoaded, setCollapseLoaded] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const importTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const manualFormRef = useRef<HTMLFormElement>(null);
 
   const backlogTasks = quadrants.backlog ?? [];
   const filteredBacklog = useMemo(
@@ -154,64 +160,76 @@ export default function App() {
     setHideCompleted(value);
   }, []);
 
-  const handleToggleBacklogCollapse = useCallback(() => {
-    setCollapseState((previous) => ({
-      backlog: !previous.backlog,
-      quadrants: { ...previous.quadrants },
-    }));
-  }, []);
+// --- manual create flow (feature branch) ---
+const handleQuadrantCreateRequest = useCallback(
+  (quadrant: QuadrantId) => {
+    setManualFormQuadrant(quadrant);
+    setManualFormFocusToken((token) => token + 1);
 
-  const handleToggleQuadrantCollapse = useCallback((quadrant: QuadrantId) => {
-    setCollapseState((previous) => ({
-      backlog: previous.backlog,
-      quadrants: { ...previous.quadrants, [quadrant]: !previous.quadrants[quadrant] },
-    }));
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      setCollapseLoaded(true);
-      return;
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        manualFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
     }
+  },
+  [manualFormRef],
+);
 
-    try {
-      const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<CollapseState> | null;
-        const nextQuadrants: Record<QuadrantId, boolean> = { ...DEFAULT_COLLAPSE_STATE.quadrants };
-        if (parsed?.quadrants && typeof parsed.quadrants === 'object') {
-          (Object.keys(nextQuadrants) as QuadrantId[]).forEach((quadrantId) => {
-            const value = (parsed.quadrants as Record<string, unknown>)[quadrantId];
-            if (typeof value === 'boolean') {
-              nextQuadrants[quadrantId] = value;
-            }
-          });
-        }
+// --- collapse controls + persistence (main) ---
+const handleToggleBacklogCollapse = useCallback(() => {
+  setCollapseState((previous) => ({
+    backlog: !previous.backlog,
+    quadrants: { ...previous.quadrants },
+  }));
+}, []);
 
-        setCollapseState({
-          backlog: typeof parsed?.backlog === 'boolean' ? parsed.backlog : DEFAULT_COLLAPSE_STATE.backlog,
-          quadrants: nextQuadrants,
+const handleToggleQuadrantCollapse = useCallback((quadrant: QuadrantId) => {
+  setCollapseState((previous) => ({
+    backlog: previous.backlog,
+    quadrants: { ...previous.quadrants, [quadrant]: !previous.quadrants[quadrant] },
+  }));
+}, []);
+
+useEffect(() => {
+  if (typeof window === 'undefined') {
+    setCollapseLoaded(true);
+    return;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<CollapseState> | null;
+      const nextQuadrants: Record<QuadrantId, boolean> = { ...DEFAULT_COLLAPSE_STATE.quadrants };
+
+      if (parsed?.quadrants && typeof parsed.quadrants === 'object') {
+        (Object.keys(nextQuadrants) as QuadrantId[]).forEach((quadrantId) => {
+          const value = (parsed.quadrants as Record<string, unknown>)[quadrantId];
+          if (typeof value === 'boolean') nextQuadrants[quadrantId] = value;
         });
       }
-    } catch (error) {
-      console.warn('Failed to load collapse state', error);
-    } finally {
-      setCollapseLoaded(true);
-    }
-  }, []);
 
-  useEffect(() => {
-    if (!collapseLoaded || typeof window === 'undefined') {
-      return;
+      setCollapseState({
+        backlog: typeof parsed?.backlog === 'boolean' ? parsed.backlog : DEFAULT_COLLAPSE_STATE.backlog,
+        quadrants: nextQuadrants,
+      });
     }
+  } catch (error) {
+    console.warn('Failed to load collapse state', error);
+  } finally {
+    setCollapseLoaded(true);
+  }
+}, []);
 
-    try {
-      window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(collapseState));
-    } catch (error) {
-      console.warn('Failed to save collapse state', error);
-    }
-  }, [collapseLoaded, collapseState]);
+useEffect(() => {
+  if (!collapseLoaded || typeof window === 'undefined') return;
 
+  try {
+    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(collapseState));
+  } catch (error) {
+    console.warn('Failed to save collapse state', error);
+  }
+}, [collapseLoaded, collapseState]);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key;
@@ -323,7 +341,12 @@ export default function App() {
             onClear={handleClearFilter}
             inputRef={searchInputRef}
           />
-          <ManualTaskForm onCreateTask={handleCreateTask} />
+          <ManualTaskForm
+            ref={manualFormRef}
+            onCreateTask={handleCreateTask}
+            initialQuadrant={manualFormQuadrant}
+            focusTrigger={manualFormFocusToken}
+          />
           <p className={styles.hotkeysHint}>
             Горячие клавиши: / — поиск, i — импорт, Esc — очистить поиск, 0–4 — перемещение задач
           </p>
@@ -347,7 +370,12 @@ export default function App() {
           onDropTask={handleQuadrantDrop}
           onUpdateTask={handleUpdateTask}
           onResetTask={resetTask}
-          onToggleCollapse={handleToggleQuadrantCollapse}
+type QuadrantProps = {
+  quadrantId: QuadrantId;
+  // ...
+  onRequestCreateTask?: (q: QuadrantId) => void;
+  onToggleCollapse?: (q: QuadrantId) => void;
+};
         />
       </div>
     </div>

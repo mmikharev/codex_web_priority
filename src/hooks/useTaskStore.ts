@@ -31,6 +31,17 @@ function isQuadrant(value: unknown): value is Quadrant {
   return value === 'backlog' || value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4';
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+  return Object.values(value).every((item) => typeof item === 'string');
+}
+
 function generateTaskId(existing: TaskMap): string {
   const globalCrypto =
     typeof globalThis !== 'undefined'
@@ -140,45 +151,94 @@ export function useTaskStore() {
         });
       } else {
         const entries = Object.entries(payload);
-        if (entries.some(([, value]) => typeof value !== 'string')) {
-          throw new Error('Каждое значение должно быть строкой (может быть пустой).');
-        }
-
-        setTasks((prev) => {
-          const base: TaskMap = {};
-
-          if (resetQuadrants) {
-            Object.entries(prev).forEach(([id, task]) => {
-              base[id] = { ...task, quadrant: 'backlog', done: task.done ?? false };
-            });
-          } else {
-            Object.assign(base, prev);
+        const quadrantEntries = entries.filter((entry): entry is [Quadrant, Record<string, string>] => {
+          const [key, value] = entry;
+          if (!isQuadrant(key)) {
+            return false;
           }
-
-          for (const [id, dueValue] of entries) {
-            const due = normalizeDue(dueValue as string);
-            const existing = base[id];
-            if (existing) {
-              base[id] = {
-                ...existing,
-                title: id,
-                due,
-              };
-              updated += 1;
-            } else {
-              base[id] = {
-                id,
-                title: id,
-                due,
-                quadrant: 'backlog',
-                done: false,
-              };
-              added += 1;
-            }
-          }
-
-          return base;
+          return isStringRecord(value);
         });
+
+        if (quadrantEntries.length > 0 && quadrantEntries.length === entries.length) {
+          setTasks((prev) => {
+            const base: TaskMap = {};
+
+            if (resetQuadrants) {
+              Object.entries(prev).forEach(([id, task]) => {
+                base[id] = { ...task, quadrant: 'backlog', done: task.done ?? false };
+              });
+            } else {
+              Object.assign(base, prev);
+            }
+
+            for (const [quadrantKey, tasksMap] of quadrantEntries) {
+              Object.entries(tasksMap).forEach(([id, dueValue]) => {
+                const due = normalizeDue(dueValue);
+                const existing = base[id];
+                if (existing) {
+                  base[id] = {
+                    ...existing,
+                    title: id,
+                    due,
+                    quadrant: quadrantKey,
+                  };
+                  updated += 1;
+                } else {
+                  base[id] = {
+                    id,
+                    title: id,
+                    due,
+                    quadrant: quadrantKey,
+                    done: false,
+                  };
+                  added += 1;
+                }
+              });
+            }
+
+            return base;
+          });
+        } else {
+          if (entries.some(([, value]) => typeof value !== 'string')) {
+            throw new Error('Каждое значение должно быть строкой (может быть пустой).');
+          }
+
+          setTasks((prev) => {
+            const base: TaskMap = {};
+
+            if (resetQuadrants) {
+              Object.entries(prev).forEach(([id, task]) => {
+                base[id] = { ...task, quadrant: 'backlog', done: task.done ?? false };
+              });
+            } else {
+              Object.assign(base, prev);
+            }
+
+            for (const [id, dueValue] of entries) {
+              const due = normalizeDue(dueValue as string);
+              const existing = base[id];
+              if (existing) {
+                base[id] = {
+                  ...existing,
+                  title: id,
+                  due,
+                };
+                updated += 1;
+              } else {
+                base[id] = {
+                  id,
+                  title: id,
+                  due,
+                  quadrant: 'backlog',
+                  done: false,
+                };
+                added += 1;
+              }
+            }
+
+            return base;
+          });
+        }
       }
 
       return { added, updated, total: added + updated };

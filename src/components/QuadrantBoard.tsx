@@ -23,7 +23,8 @@ interface QuadrantBoardProps {
   onDropTask: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
-  onToggleCollapse: (quadrant: QuadrantId) => void;
+onRequestCreateTask?: (quadrant: QuadrantId) => void;
+onToggleCollapse: (quadrant: QuadrantId) => void;
 }
 
 function QuadrantZone({
@@ -35,7 +36,8 @@ function QuadrantZone({
   onDrop,
   onUpdateTask,
   onResetTask,
-  onToggleCollapse,
+onRequestCreateTask,
+onToggleCollapse,
 }: {
   quadrant: QuadrantId;
   title: string;
@@ -45,7 +47,8 @@ function QuadrantZone({
   onDrop: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
-  onToggleCollapse: (quadrant: QuadrantId) => void;
+onRequestCreateTask?: (quadrant: QuadrantId) => void;
+onToggleCollapse: (quadrant: QuadrantId) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
 // keep both: stable id + ref + observers
@@ -165,22 +168,35 @@ useLayoutEffect(() => {
         </button>
       </header>
 {!collapsed && (
-  <div
-    id={dropAreaId}
-    ref={dropAreaRef}
-    className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
-    onDragOver={handleDragOver}
-    onDragLeave={handleDragLeave}
-    onDrop={handleDrop}
-  >
-    {tasks.length === 0 ? (
-      <div className={styles.emptyState}>Перетащите задачу сюда</div>
-    ) : (
-      tasks.map((task) => (
-        <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} onReset={onResetTask} />
-      ))
-    )}
-  </div>
+  <>
+    <div
+      id={dropAreaId}
+      ref={dropAreaRef}
+      className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {tasks.length === 0 ? (
+        <div className={styles.emptyState}>Перетащите задачу сюда</div>
+      ) : (
+        tasks.map((task) => (
+          <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} onReset={onResetTask} />
+        ))
+      )}
+    </div>
+
+    {quadrant === 'Q4' && onRequestCreateTask ? (
+      <button
+        type="button"
+        className={styles.addButton}
+        aria-label={`Добавить задачу в квадрант ${quadrant}`}
+        onClick={() => onRequestCreateTask(quadrant)}
+      >
+        + Добавить задачу
+      </button>
+    ) : null}
+  </>
 )}
     </section>
   );
@@ -193,6 +209,7 @@ export function QuadrantBoard({
   onUpdateTask,
   onResetTask,
   onToggleCollapse,
+  onRequestCreateTask, // optional
 }: QuadrantBoardProps) {
   return (
     <div className={styles.board}>
@@ -207,7 +224,8 @@ export function QuadrantBoard({
           onDrop={onDropTask}
           onUpdateTask={onUpdateTask}
           onResetTask={onResetTask}
-          onToggleCollapse={onToggleCollapse}
+onRequestCreateTask={onRequestCreateTask}
+onToggleCollapse={onToggleCollapse}
         />
       ))}
     </div>
