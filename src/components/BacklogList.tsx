@@ -11,6 +11,8 @@ interface BacklogListProps {
   onHideCompletedChange: (value: boolean) => void;
   onDropTask: (taskId: string) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 export function BacklogList({
@@ -20,9 +22,12 @@ export function BacklogList({
   onHideCompletedChange,
   onDropTask,
   onUpdateTask,
+  collapsed,
+  onToggleCollapse,
 }: BacklogListProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const displayedCount = totalCount ?? tasks.length;
+  const listId = 'backlog-drop-area';
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -46,39 +51,53 @@ export function BacklogList({
   };
 
   return (
-    <section className={styles.container}>
+    <section className={`${styles.container} ${collapsed ? styles.collapsed : ''}`.trim()}>
       <div className={styles.header}>
-        <div>
+        <div className={styles.headerTitle}>
           <h2 className={styles.title}>Бэклог</h2>
           <span className={styles.count}>{displayedCount}</span>
         </div>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={hideCompleted}
-            onChange={(event) => onHideCompletedChange(event.target.checked)}
-          />
-          Скрыть выполненные
-        </label>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.toggleButton}
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-controls={listId}
+          >
+            {collapsed ? 'Развернуть' : 'Свернуть'}
+          </button>
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={hideCompleted}
+              onChange={(event) => onHideCompletedChange(event.target.checked)}
+            />
+            Скрыть выполненные
+          </label>
+        </div>
       </div>
-      <div
-        className={`${styles.list} ${isDragOver ? styles.dragOver : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {tasks.length === 0 ? (
-          <div className={styles.empty}>
-            {hideCompleted
-              ? 'Нет задач для отображения. Попробуйте отключить фильтр «Скрыть выполненные».'
-              : 'Все задачи распределены по квадрантам'}
-          </div>
-        ) : (
-          tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} />
-          ))
-        )}
-      </div>
+      {!collapsed && (
+        <div
+          id={listId}
+          className={`${styles.list} ${isDragOver ? styles.dragOver : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {tasks.length === 0 ? (
+            <div className={styles.empty}>
+              {hideCompleted
+                ? 'Нет задач для отображения. Попробуйте отключить фильтр «Скрыть выполненные».'
+                : 'Все задачи распределены по квадрантам'}
+            </div>
+          ) : (
+            tasks.map((task) => (
+              <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} />
+            ))
+          )}
+        </div>
+      )}
     </section>
   );
 }

@@ -25,8 +25,21 @@
   position: relative;
 }
 
+.zoneCollapsed {
+  min-height: auto;
+}
+
 .zoneHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.zoneHeaderContent {
+  flex: 1;
+  min-width: 0;
 }
 
 .zoneTitle {
@@ -40,6 +53,27 @@
   margin: 4px 0 0;
   font-size: 13px;
   color: rgba(15, 23, 42, 0.55);
+}
+
+.toggleButton {
+  appearance: none;
+  border: none;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: rgba(15, 23, 42, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.toggleButton:hover,
+.toggleButton:focus-visible {
+  background: rgba(59, 130, 246, 0.16);
+  color: rgba(37, 99, 235, 0.9);
+  outline: none;
 }
 
 .dropArea {

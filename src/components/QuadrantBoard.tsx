@@ -19,10 +19,12 @@ const QUADRANT_DETAILS: Array<{
 
 interface QuadrantBoardProps {
   quadrants: Record<QuadrantId, Task[]>;
+  collapsed: Record<QuadrantId, boolean>;
   onDropTask: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
-  onRequestCreateTask?: (quadrant: QuadrantId) => void;
+onRequestCreateTask?: (quadrant: QuadrantId) => void;
+onToggleCollapse: (quadrant: QuadrantId) => void;
 }
 
 function QuadrantZone({
@@ -30,101 +32,100 @@ function QuadrantZone({
   title,
   subtitle,
   tasks,
+  collapsed,
   onDrop,
   onUpdateTask,
   onResetTask,
-  onRequestCreateTask,
+onRequestCreateTask,
+onToggleCollapse,
 }: {
   quadrant: QuadrantId;
   title: string;
   subtitle: string;
   tasks: Task[];
+  collapsed: boolean;
   onDrop: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
-  onRequestCreateTask?: (quadrant: QuadrantId) => void;
+onRequestCreateTask?: (quadrant: QuadrantId) => void;
+onToggleCollapse: (quadrant: QuadrantId) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const dropAreaRef = useRef<HTMLDivElement>(null);
+// keep both: stable id + ref + observers
+const dropAreaId = `quadrant-${quadrant}`;
+const dropAreaRef = useRef<HTMLDivElement | null>(null);
 
-  useLayoutEffect(() => {
-    const dropArea = dropAreaRef.current;
-    if (!dropArea || typeof window === 'undefined') {
+useLayoutEffect(() => {
+  if (collapsed) return; // no DOM, no observers
+  if (typeof window === 'undefined') return;
+
+  const dropArea = dropAreaRef.current;
+  if (!dropArea) return;
+
+  const hasResizeObserver = typeof window.ResizeObserver !== 'undefined';
+  const hasMutationObserver = typeof window.MutationObserver !== 'undefined';
+
+  const updateMaxHeight = () => {
+    if (!dropArea) return;
+
+    const cards = Array.from(dropArea.querySelectorAll<HTMLElement>('[data-task-id]'));
+    const limit = Math.min(cards.length, 3);
+
+    if (limit === 0) {
+      dropArea.style.removeProperty('--quadrant-max-height');
       return;
     }
 
-    const hasResizeObserver = typeof window.ResizeObserver !== 'undefined';
-    const hasMutationObserver = typeof window.MutationObserver !== 'undefined';
-
-    const updateMaxHeight = () => {
-      if (!dropArea) {
-        return;
+    let totalHeight = 0;
+    for (let index = 0; index < limit; index += 1) {
+      const card = cards[index];
+      totalHeight += card.getBoundingClientRect().height;
+      if (index < limit - 1) {
+        totalHeight += parseFloat(window.getComputedStyle(card).marginBottom || '0');
       }
-
-      const cards = Array.from(dropArea.querySelectorAll<HTMLElement>('[data-task-id]'));
-      const limit = Math.min(cards.length, 3);
-
-      if (limit === 0) {
-        dropArea.style.removeProperty('--quadrant-max-height');
-        return;
-      }
-
-      let totalHeight = 0;
-      for (let index = 0; index < limit; index += 1) {
-        const card = cards[index];
-        totalHeight += card.getBoundingClientRect().height;
-        if (index < limit - 1) {
-          totalHeight += parseFloat(window.getComputedStyle(card).marginBottom || '0');
-        }
-      }
-
-      const areaStyles = window.getComputedStyle(dropArea);
-      const verticalChrome =
-        parseFloat(areaStyles.paddingTop || '0') +
-        parseFloat(areaStyles.paddingBottom || '0') +
-        parseFloat(areaStyles.borderTopWidth || '0') +
-        parseFloat(areaStyles.borderBottomWidth || '0');
-
-      dropArea.style.setProperty('--quadrant-max-height', `${Math.ceil(totalHeight + verticalChrome)}px`);
-    };
-
-    updateMaxHeight();
-
-    if (!hasResizeObserver) {
-      return;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
+    const areaStyles = window.getComputedStyle(dropArea);
+    const verticalChrome =
+      parseFloat(areaStyles.paddingTop || '0') +
+      parseFloat(areaStyles.paddingBottom || '0') +
+      parseFloat(areaStyles.borderTopWidth || '0') +
+      parseFloat(areaStyles.borderBottomWidth || '0');
+
+    dropArea.style.setProperty('--quadrant-max-height', `${Math.ceil(totalHeight + verticalChrome)}px`);
+  };
+
+  updateMaxHeight();
+  if (!hasResizeObserver) return;
+
+  const resizeObserver = new ResizeObserver(updateMaxHeight);
+
+  const observeElements = () => {
+    resizeObserver.disconnect();
+    resizeObserver.observe(dropArea);
+    const cards = Array.from(dropArea.querySelectorAll<HTMLElement>('[data-task-id]'));
+    cards.forEach((card) => resizeObserver.observe(card));
+  };
+
+  observeElements();
+
+  if (hasMutationObserver) {
+    const mutationObserver = new MutationObserver(() => {
+      observeElements();
       updateMaxHeight();
     });
-
-    const observeElements = () => {
-      resizeObserver.disconnect();
-      resizeObserver.observe(dropArea);
-      const cards = Array.from(dropArea.querySelectorAll<HTMLElement>('[data-task-id]'));
-      cards.forEach((card) => resizeObserver.observe(card));
-    };
-
-    observeElements();
-
-    if (hasMutationObserver) {
-      const mutationObserver = new MutationObserver(() => {
-        observeElements();
-        updateMaxHeight();
-      });
-
-      mutationObserver.observe(dropArea, { childList: true, subtree: true });
-
-      return () => {
-        resizeObserver.disconnect();
-        mutationObserver.disconnect();
-      };
-    }
+    mutationObserver.observe(dropArea, { childList: true, subtree: true });
 
     return () => {
       resizeObserver.disconnect();
+      mutationObserver.disconnect();
     };
-  }, [tasks]);
+  }
+
+  return () => {
+    resizeObserver.disconnect();
+  };
+}, [tasks, collapsed]);
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -145,42 +146,71 @@ function QuadrantZone({
     }
   };
 
+  const handleToggle = () => {
+    onToggleCollapse(quadrant);
+  };
+
   return (
-    <section className={styles.zone}>
+    <section className={`${styles.zone} ${collapsed ? styles.zoneCollapsed : ''}`.trim()}>
       <header className={styles.zoneHeader}>
-        <h3 className={styles.zoneTitle}>{title}</h3>
-        <p className={styles.zoneSubtitle}>{subtitle}</p>
-      </header>
-      <div
-        ref={dropAreaRef}
-        className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {tasks.length === 0 ? (
-          <div className={styles.emptyState}>Перетащите задачу сюда</div>
-        ) : (
-          tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} onReset={onResetTask} />
-          ))
-        )}
-      </div>
-      {quadrant === 'Q4' && onRequestCreateTask ? (
+        <div className={styles.zoneHeaderContent}>
+          <h3 className={styles.zoneTitle}>{title}</h3>
+          <p className={styles.zoneSubtitle}>{subtitle}</p>
+        </div>
         <button
           type="button"
-          className={styles.addButton}
-          aria-label="Добавить задачу в квадрант Q4"
-          onClick={() => onRequestCreateTask(quadrant)}
+          className={styles.toggleButton}
+          onClick={handleToggle}
+          aria-expanded={!collapsed}
+          aria-controls={dropAreaId}
         >
-          + Добавить задачу
+          {collapsed ? 'Развернуть' : 'Свернуть'}
         </button>
-      ) : null}
+      </header>
+{!collapsed && (
+  <>
+    <div
+      id={dropAreaId}
+      ref={dropAreaRef}
+      className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {tasks.length === 0 ? (
+        <div className={styles.emptyState}>Перетащите задачу сюда</div>
+      ) : (
+        tasks.map((task) => (
+          <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} onReset={onResetTask} />
+        ))
+      )}
+    </div>
+
+    {quadrant === 'Q4' && onRequestCreateTask ? (
+      <button
+        type="button"
+        className={styles.addButton}
+        aria-label={`Добавить задачу в квадрант ${quadrant}`}
+        onClick={() => onRequestCreateTask(quadrant)}
+      >
+        + Добавить задачу
+      </button>
+    ) : null}
+  </>
+)}
     </section>
   );
 }
 
-export function QuadrantBoard({ quadrants, onDropTask, onUpdateTask, onResetTask, onRequestCreateTask }: QuadrantBoardProps) {
+export function QuadrantBoard({
+  quadrants,
+  collapsed,
+  onDropTask,
+  onUpdateTask,
+  onResetTask,
+  onToggleCollapse,
+  onRequestCreateTask, // optional
+}: QuadrantBoardProps) {
   return (
     <div className={styles.board}>
       {QUADRANT_DETAILS.map(({ id, title, subtitle }) => (
@@ -190,10 +220,12 @@ export function QuadrantBoard({ quadrants, onDropTask, onUpdateTask, onResetTask
           title={title}
           subtitle={subtitle}
           tasks={quadrants[id] ?? []}
+          collapsed={collapsed[id as QuadrantId] ?? false}
           onDrop={onDropTask}
           onUpdateTask={onUpdateTask}
           onResetTask={onResetTask}
-          onRequestCreateTask={onRequestCreateTask}
+onRequestCreateTask={onRequestCreateTask}
+onToggleCollapse={onToggleCollapse}
         />
       ))}
     </div>

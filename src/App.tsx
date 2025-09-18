@@ -12,6 +12,23 @@ import { sortTasks } from './utils/taskSort';
 
 type QuadrantId = Exclude<Quadrant, 'backlog'>;
 
+type CollapseState = {
+  backlog: boolean;
+  quadrants: Record<QuadrantId, boolean>;
+};
+
+const COLLAPSE_STORAGE_KEY = 'eisenhower_ui_prefs_v1';
+
+const DEFAULT_COLLAPSE_STATE: CollapseState = {
+  backlog: false,
+  quadrants: {
+    Q1: false,
+    Q2: false,
+    Q3: false,
+    Q4: false,
+  },
+};
+
 function filterBacklog(tasks: Task[], query: string, hideCompleted: boolean): Task[] {
   const normalized = query.trim().toLowerCase();
 
@@ -49,8 +66,16 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [hideCompleted, setHideCompleted] = useState(false);
-  const [manualFormQuadrant, setManualFormQuadrant] = useState<Quadrant>('backlog');
-  const [manualFormFocusToken, setManualFormFocusToken] = useState(0);
+// manual task creation controls (feature branch)
+const [manualFormQuadrant, setManualFormQuadrant] = useState<Quadrant>('backlog');
+const [manualFormFocusToken, setManualFormFocusToken] = useState(0);
+
+// collapsible UI state (main)
+const [collapseState, setCollapseState] = useState<CollapseState>(() => ({
+  backlog: DEFAULT_COLLAPSE_STATE.backlog,
+  quadrants: { ...DEFAULT_COLLAPSE_STATE.quadrants },
+}));
+const [collapseLoaded, setCollapseLoaded] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const importTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -135,19 +160,76 @@ export default function App() {
     setHideCompleted(value);
   }, []);
 
-  const handleQuadrantCreateRequest = useCallback(
-    (quadrant: QuadrantId) => {
-      setManualFormQuadrant(quadrant);
-      setManualFormFocusToken((token) => token + 1);
-      if (typeof window !== 'undefined') {
-        window.requestAnimationFrame(() => {
-          manualFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+// --- manual create flow (feature branch) ---
+const handleQuadrantCreateRequest = useCallback(
+  (quadrant: QuadrantId) => {
+    setManualFormQuadrant(quadrant);
+    setManualFormFocusToken((token) => token + 1);
+
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        manualFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  },
+  [manualFormRef],
+);
+
+// --- collapse controls + persistence (main) ---
+const handleToggleBacklogCollapse = useCallback(() => {
+  setCollapseState((previous) => ({
+    backlog: !previous.backlog,
+    quadrants: { ...previous.quadrants },
+  }));
+}, []);
+
+const handleToggleQuadrantCollapse = useCallback((quadrant: QuadrantId) => {
+  setCollapseState((previous) => ({
+    backlog: previous.backlog,
+    quadrants: { ...previous.quadrants, [quadrant]: !previous.quadrants[quadrant] },
+  }));
+}, []);
+
+useEffect(() => {
+  if (typeof window === 'undefined') {
+    setCollapseLoaded(true);
+    return;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<CollapseState> | null;
+      const nextQuadrants: Record<QuadrantId, boolean> = { ...DEFAULT_COLLAPSE_STATE.quadrants };
+
+      if (parsed?.quadrants && typeof parsed.quadrants === 'object') {
+        (Object.keys(nextQuadrants) as QuadrantId[]).forEach((quadrantId) => {
+          const value = (parsed.quadrants as Record<string, unknown>)[quadrantId];
+          if (typeof value === 'boolean') nextQuadrants[quadrantId] = value;
         });
       }
-    },
-    [manualFormRef],
-  );
 
+      setCollapseState({
+        backlog: typeof parsed?.backlog === 'boolean' ? parsed.backlog : DEFAULT_COLLAPSE_STATE.backlog,
+        quadrants: nextQuadrants,
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to load collapse state', error);
+  } finally {
+    setCollapseLoaded(true);
+  }
+}, []);
+
+useEffect(() => {
+  if (!collapseLoaded || typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(collapseState));
+  } catch (error) {
+    console.warn('Failed to save collapse state', error);
+  }
+}, [collapseLoaded, collapseState]);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key;
@@ -275,6 +357,8 @@ export default function App() {
             onHideCompletedChange={handleHideCompletedChange}
             onDropTask={handleBacklogDrop}
             onUpdateTask={handleUpdateTask}
+            collapsed={collapseState.backlog}
+            onToggleCollapse={handleToggleBacklogCollapse}
           />
         </div>
       </div>
@@ -282,10 +366,16 @@ export default function App() {
       <div className={styles.boardRow}>
         <QuadrantBoard
           quadrants={{ Q1: quadrants.Q1 ?? [], Q2: quadrants.Q2 ?? [], Q3: quadrants.Q3 ?? [], Q4: quadrants.Q4 ?? [] }}
+          collapsed={collapseState.quadrants}
           onDropTask={handleQuadrantDrop}
           onUpdateTask={handleUpdateTask}
           onResetTask={resetTask}
-          onRequestCreateTask={handleQuadrantCreateRequest}
+type QuadrantProps = {
+  quadrantId: QuadrantId;
+  // ...
+  onRequestCreateTask?: (q: QuadrantId) => void;
+  onToggleCollapse?: (q: QuadrantId) => void;
+};
         />
       </div>
     </div>
