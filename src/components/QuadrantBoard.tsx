@@ -19,9 +19,11 @@ const QUADRANT_DETAILS: Array<{
 
 interface QuadrantBoardProps {
   quadrants: Record<QuadrantId, Task[]>;
+  collapsed: Record<QuadrantId, boolean>;
   onDropTask: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
+  onToggleCollapse: (quadrant: QuadrantId) => void;
 }
 
 function QuadrantZone({
@@ -29,19 +31,24 @@ function QuadrantZone({
   title,
   subtitle,
   tasks,
+  collapsed,
   onDrop,
   onUpdateTask,
   onResetTask,
+  onToggleCollapse,
 }: {
   quadrant: QuadrantId;
   title: string;
   subtitle: string;
   tasks: Task[];
+  collapsed: boolean;
   onDrop: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
+  onToggleCollapse: (quadrant: QuadrantId) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const dropAreaId = `quadrant-${quadrant}`;
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -62,31 +69,56 @@ function QuadrantZone({
     }
   };
 
+  const handleToggle = () => {
+    onToggleCollapse(quadrant);
+  };
+
   return (
-    <section className={styles.zone}>
+    <section className={`${styles.zone} ${collapsed ? styles.zoneCollapsed : ''}`.trim()}>
       <header className={styles.zoneHeader}>
-        <h3 className={styles.zoneTitle}>{title}</h3>
-        <p className={styles.zoneSubtitle}>{subtitle}</p>
+        <div className={styles.zoneHeaderContent}>
+          <h3 className={styles.zoneTitle}>{title}</h3>
+          <p className={styles.zoneSubtitle}>{subtitle}</p>
+        </div>
+        <button
+          type="button"
+          className={styles.toggleButton}
+          onClick={handleToggle}
+          aria-expanded={!collapsed}
+          aria-controls={dropAreaId}
+        >
+          {collapsed ? 'Развернуть' : 'Свернуть'}
+        </button>
       </header>
-      <div
-        className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {tasks.length === 0 ? (
-          <div className={styles.emptyState}>Перетащите задачу сюда</div>
-        ) : (
-          tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} onReset={onResetTask} />
-          ))
-        )}
-      </div>
+      {!collapsed && (
+        <div
+          id={dropAreaId}
+          className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {tasks.length === 0 ? (
+            <div className={styles.emptyState}>Перетащите задачу сюда</div>
+          ) : (
+            tasks.map((task) => (
+              <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} onReset={onResetTask} />
+            ))
+          )}
+        </div>
+      )}
     </section>
   );
 }
 
-export function QuadrantBoard({ quadrants, onDropTask, onUpdateTask, onResetTask }: QuadrantBoardProps) {
+export function QuadrantBoard({
+  quadrants,
+  collapsed,
+  onDropTask,
+  onUpdateTask,
+  onResetTask,
+  onToggleCollapse,
+}: QuadrantBoardProps) {
   return (
     <div className={styles.board}>
       {QUADRANT_DETAILS.map(({ id, title, subtitle }) => (
@@ -96,9 +128,11 @@ export function QuadrantBoard({ quadrants, onDropTask, onUpdateTask, onResetTask
           title={title}
           subtitle={subtitle}
           tasks={quadrants[id] ?? []}
+          collapsed={collapsed[id as QuadrantId] ?? false}
           onDrop={onDropTask}
           onUpdateTask={onUpdateTask}
           onResetTask={onResetTask}
+          onToggleCollapse={onToggleCollapse}
         />
       ))}
     </div>
