@@ -1,18 +1,28 @@
 .board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  gap: 24px;
+  justify-content: center;
+  grid-template-columns: minmax(260px, 1fr);
+  width: min(100%, 760px);
+}
+
+@media (min-width: 768px) {
+  .board {
+    grid-template-columns: repeat(2, minmax(280px, 360px));
+  }
 }
 
 .zone {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #dde4f2;
-  padding: 16px;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
-  min-height: 220px;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  padding: 18px;
+  box-shadow: 0 30px 60px -45px rgba(15, 23, 42, 0.5);
+  min-height: 280px;
   display: flex;
   flex-direction: column;
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
 }
 
 .zoneHeader {
@@ -23,29 +33,32 @@
   margin: 0;
   font-size: 17px;
   font-weight: 700;
+  color: rgba(15, 23, 42, 0.9);
 }
 
 .zoneSubtitle {
   margin: 4px 0 0;
   font-size: 13px;
-  color: #64748b;
+  color: rgba(15, 23, 42, 0.55);
 }
 
 .dropArea {
   flex: 1;
-  border-radius: 12px;
-  border: 1px dashed transparent;
-  padding: 4px;
+  border-radius: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.24);
+  padding: 8px;
   transition: border-color 0.2s ease, background 0.2s ease;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: auto;
 }
 
 .dragOver {
-  border-color: #16a34a;
-  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(56, 189, 248, 0.8);
+  background: rgba(56, 189, 248, 0.18);
 }
 
 .emptyState {
-  color: #94a3b8;
+  color: rgba(15, 23, 42, 0.6);
   font-size: 13px;
   text-align: center;
   margin-top: 24px;

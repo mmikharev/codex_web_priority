@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Quadrant, Task, TaskMap } from '../types';
 import { clearState, loadState, scheduleSave } from '../utils/storage';
+import { sortTasks } from '../utils/taskSort';
 
 interface ImportOptions {
   resetQuadrants?: boolean;
@@ -28,6 +29,29 @@ function normalizeDue(value: string | null | undefined): string | null {
 
 function isQuadrant(value: unknown): value is Quadrant {
   return value === 'backlog' || value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4';
+}
+
+function generateTaskId(existing: TaskMap): string {
+  const globalCrypto =
+    typeof globalThis !== 'undefined'
+      ? (globalThis.crypto as { randomUUID?: () => string } | undefined)
+      : undefined;
+
+  if (globalCrypto?.randomUUID) {
+    let candidate = globalCrypto.randomUUID();
+    while (existing[candidate]) {
+      candidate = globalCrypto.randomUUID();
+    }
+    return candidate;
+  }
+
+  let attempt = 0;
+  let candidate = `task-${Date.now()}`;
+  while (existing[candidate]) {
+    attempt += 1;
+    candidate = `task-${Date.now()}-${attempt}`;
+  }
+  return candidate;
 }
 
 function isExportPayload(
@@ -194,6 +218,26 @@ export function useTaskStore() {
     });
   }, []);
 
+  const addTask = useCallback((task: { title: string; due: string | null; quadrant: Quadrant }) => {
+    setTasks((prev) => {
+      const normalizedTitle = task.title.trim() || 'Новая задача';
+      const normalizedQuadrant = isQuadrant(task.quadrant) ? task.quadrant : 'backlog';
+      const normalizedDue = normalizeDue(task.due);
+      const id = generateTaskId(prev);
+
+      return {
+        ...prev,
+        [id]: {
+          id,
+          title: normalizedTitle,
+          due: normalizedDue,
+          quadrant: normalizedQuadrant,
+          done: false,
+        },
+      };
+    });
+  }, []);
+
   const resetTask = useCallback((taskId: string) => {
     moveTask(taskId, 'backlog');
   }, [moveTask]);
@@ -207,11 +251,11 @@ export function useTaskStore() {
   const quadrants = useMemo(() => {
     const list = Object.values(tasks);
     return {
-      backlog: list.filter((task) => task.quadrant === 'backlog'),
-      Q1: list.filter((task) => task.quadrant === 'Q1'),
-      Q2: list.filter((task) => task.quadrant === 'Q2'),
-      Q3: list.filter((task) => task.quadrant === 'Q3'),
-      Q4: list.filter((task) => task.quadrant === 'Q4'),
+      backlog: sortTasks(list.filter((task) => task.quadrant === 'backlog')),
+      Q1: sortTasks(list.filter((task) => task.quadrant === 'Q1')),
+      Q2: sortTasks(list.filter((task) => task.quadrant === 'Q2')),
+      Q3: sortTasks(list.filter((task) => task.quadrant === 'Q3')),
+      Q4: sortTasks(list.filter((task) => task.quadrant === 'Q4')),
     };
   }, [tasks]);
 
@@ -222,6 +266,7 @@ export function useTaskStore() {
     moveTask,
     updateTask,
     resetTask,
+    addTask,
     clearCorruptedState,
     loadError,
   };
