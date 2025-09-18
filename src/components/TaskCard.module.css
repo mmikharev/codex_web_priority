@@ -1,0 +1,93 @@
+.card {
+  background: #ffffff;
+  border: 1px solid #e0e6f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+  cursor: grab;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionButton {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.actionButton:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.due {
+  font-size: 13px;
+  color: #475569;
+  margin-top: 8px;
+}
+
+.editForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.input {
+  padding: 8px 10px;
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.saveButton {
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancelButton {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  padding: 6px 12px;
+  cursor: pointer;
+}
