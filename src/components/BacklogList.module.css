@@ -1,12 +1,14 @@
 .container {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #dde4f2;
-  padding: 16px;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.32);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  padding: 18px;
+  box-shadow: 0 28px 56px -40px rgba(15, 23, 42, 0.45);
   display: flex;
   flex-direction: column;
-  min-height: 300px;
+  min-height: 320px;
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
 }
 
 .header {
@@ -14,17 +16,18 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .title {
   font-size: 18px;
   font-weight: 700;
   margin: 0;
+  color: rgba(15, 23, 42, 0.9);
 }
 
 .count {
-  color: #64748b;
+  color: rgba(14, 116, 144, 0.9);
   font-size: 13px;
   display: block;
   margin-top: 4px;
@@ -35,7 +38,7 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #475569;
+  color: rgba(15, 23, 42, 0.65);
   user-select: none;
   cursor: pointer;
 }
@@ -47,20 +50,22 @@
 
 .list {
   flex: 1;
-  min-height: 200px;
-  padding: 4px;
-  border-radius: 12px;
-  border: 1px dashed transparent;
+  min-height: 220px;
+  padding: 6px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
   transition: border-color 0.2s ease, background 0.2s ease;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: auto;
 }
 
 .dragOver {
-  border-color: #2563eb;
-  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(59, 130, 246, 0.65);
+  background: rgba(59, 130, 246, 0.15);
 }
 
 .empty {
-  color: #94a3b8;
+  color: rgba(15, 23, 42, 0.6);
   font-size: 13px;
   text-align: center;
   margin-top: 24px;

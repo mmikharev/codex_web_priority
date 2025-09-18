@@ -1,39 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BacklogList } from './components/BacklogList';
 import { ImportPanel } from './components/ImportPanel';
+import { ManualTaskForm } from './components/ManualTaskForm';
 import { QuadrantBoard } from './components/QuadrantBoard';
 import { SearchBar } from './components/SearchBar';
 import styles from './App.module.css';
 import { useTaskStore } from './hooks/useTaskStore';
-import { parseLooseDate } from './utils/date';
 import { Quadrant, Task } from './types';
 import { createExportPayload } from './utils/export';
+import { sortTasks } from './utils/taskSort';
 
 type QuadrantId = Exclude<Quadrant, 'backlog'>;
-
-function sortBacklog(tasks: Task[]): Task[] {
-  return [...tasks].sort((a, b) => {
-    const dateA = parseLooseDate(a.due ?? undefined);
-    const dateB = parseLooseDate(b.due ?? undefined);
-
-    if (dateA && dateB) {
-      const diff = dateA.getTime() - dateB.getTime();
-      if (diff !== 0) {
-        return diff;
-      }
-    }
-
-    if (dateA && !dateB) return -1;
-    if (!dateA && dateB) return 1;
-
-    return a.title.localeCompare(b.title, undefined, { sensitivity: 'accent' });
-  });
-}
 
 function filterBacklog(tasks: Task[], query: string, hideCompleted: boolean): Task[] {
   const normalized = query.trim().toLowerCase();
 
-  return sortBacklog(
+  return sortTasks(
     tasks.filter((task) => {
       if (hideCompleted && task.done) {
         return false;
@@ -57,6 +39,7 @@ export default function App() {
     moveTask,
     updateTask,
     resetTask,
+    addTask,
     clearCorruptedState,
     loadError,
   } = useTaskStore();
@@ -114,6 +97,13 @@ export default function App() {
       updateTask(taskId, updates);
     },
     [updateTask],
+  );
+
+  const handleCreateTask = useCallback(
+    (payload: { title: string; due: string | null; quadrant: Quadrant }) => {
+      addTask(payload);
+    },
+    [addTask],
   );
 
   const handleExport = useCallback(() => {
@@ -246,13 +236,14 @@ export default function App() {
           error={importError}
           textareaRef={importTextareaRef}
         />
-        <div>
+        <div className={styles.sideColumn}>
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
             onClear={handleClearFilter}
             inputRef={searchInputRef}
           />
+          <ManualTaskForm onCreateTask={handleCreateTask} />
           <p className={styles.hotkeysHint}>
             Горячие клавиши: / — поиск, i — импорт, Esc — очистить поиск, 0–4 — перемещение задач
           </p>
