@@ -128,11 +128,21 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
+.iconControlStop {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.95), rgba(239, 68, 68, 0.92));
+  box-shadow: 0 16px 28px -20px rgba(239, 68, 68, 0.8);
+}
+
 .iconControl:hover,
 .iconControl:focus-visible {
   transform: translateY(-2px);
   box-shadow: 0 20px 32px -18px rgba(37, 99, 235, 0.95);
   outline: none;
+}
+
+.iconControlStop:hover,
+.iconControlStop:focus-visible {
+  box-shadow: 0 20px 34px -18px rgba(220, 38, 38, 0.85);
 }
 
 .iconControl:disabled,
@@ -272,12 +282,36 @@
   align-items: center;
 }
 
+.settingsGroup {
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--pomodoro-input-bg);
+}
+
+.settingsGroupTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--pomodoro-task-color);
+}
+
 .toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
   color: var(--pomodoro-task-color);
+}
+
+.toggleDisabled {
+  opacity: 0.55;
+}
+
+.toggleDisabled input {
+  cursor: not-allowed;
 }
 
 .clearStats {

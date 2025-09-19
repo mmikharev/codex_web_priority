@@ -23,8 +23,8 @@ const COLORS: Record<Exclude<Quadrant, 'backlog'>, string> = {
 
 function getStats(tasks: Task[]) {
   const total = tasks.length;
-  const active = tasks.filter((task) => !(task.done ?? false)).length;
-  return { total, active };
+  const completed = tasks.filter((task) => task.done ?? false).length;
+  return { total, completed };
 }
 
 export function PriorityOverview({ quadrants, onSelect }: PriorityOverviewProps) {
@@ -45,7 +45,7 @@ export function PriorityOverview({ quadrants, onSelect }: PriorityOverviewProps)
             <span className={styles.quadrant}>{quadrant}</span>
             <span className={styles.title}>{TITLES[quadrant]}</span>
             <span className={styles.counter}>
-              {stats.active}
+              {stats.completed}
               <span className={styles.counterTotal}>/{stats.total}</span>
             </span>
           </button>

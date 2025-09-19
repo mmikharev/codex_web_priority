@@ -27,6 +27,32 @@ function normalizeDue(value: string | null | undefined): string | null {
   return trimmed.length === 0 ? null : trimmed;
 }
 
+function finalizeTask(input: {
+  id: string;
+  title: string;
+  due: string | null;
+  quadrant: Quadrant;
+  done: boolean;
+  createdAt?: string;
+  completedAt?: string | null;
+  timeSpentSeconds?: number;
+}): Task {
+  const createdAt = typeof input.createdAt === 'string' ? input.createdAt : new Date().toISOString();
+  const completedAt = typeof input.completedAt === 'string' ? input.completedAt : null;
+  const timeSpentSeconds = typeof input.timeSpentSeconds === 'number' ? Math.max(0, input.timeSpentSeconds) : 0;
+
+  return {
+    id: input.id,
+    title: input.title,
+    due: normalizeDue(input.due),
+    quadrant: input.quadrant,
+    done: input.done,
+    createdAt,
+    completedAt,
+    timeSpentSeconds,
+  };
+}
+
 function isQuadrant(value: unknown): value is Quadrant {
   return value === 'backlog' || value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4';
 }
@@ -67,7 +93,20 @@ function generateTaskId(existing: TaskMap): string {
 
 function isExportPayload(
   value: unknown,
-): value is { tasks: Record<string, { title?: string; due?: string | null; quadrant?: Quadrant; done?: boolean }> } {
+): value is {
+  tasks: Record<
+    string,
+    {
+      title?: string;
+      due?: string | null;
+      quadrant?: Quadrant;
+      done?: boolean;
+      createdAt?: string;
+      completedAt?: string | null;
+      timeSpentSeconds?: number;
+    }
+  >;
+} {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -105,15 +144,29 @@ export function useTaskStore() {
         const base: TaskMap = {};
         if (resetQuadrants) {
           Object.entries(tasks).forEach(([id, task]) => {
-            base[id] = {
-              ...task,
+            base[id] = finalizeTask({
+              id,
+              title: task.title,
+              due: task.due ?? null,
               quadrant: 'backlog',
               done: task.done ?? false,
-            };
+              createdAt: task.createdAt,
+              completedAt: task.completedAt,
+              timeSpentSeconds: task.timeSpentSeconds,
+            });
           });
         } else {
           Object.entries(tasks).forEach(([id, task]) => {
-            base[id] = { ...task, done: task.done ?? false };
+            base[id] = finalizeTask({
+              id,
+              title: task.title,
+              due: task.due ?? null,
+              quadrant: task.quadrant,
+              done: task.done ?? false,
+              createdAt: task.createdAt,
+              completedAt: task.completedAt,
+              timeSpentSeconds: task.timeSpentSeconds,
+            });
           });
         }
         return base;
@@ -139,6 +192,20 @@ export function useTaskStore() {
           const normalizedDue = normalizeDue(descriptor.due ?? null);
           const normalizedQuadrant = isQuadrant(descriptor.quadrant) ? descriptor.quadrant : 'backlog';
           const normalizedDone = typeof descriptor.done === 'boolean' ? descriptor.done : false;
+          const normalizedCreatedAt =
+            typeof descriptor.createdAt === 'string' && descriptor.createdAt.trim().length > 0
+              ? descriptor.createdAt
+              : base[id]?.createdAt;
+          const normalizedCompletedAt =
+            typeof descriptor.completedAt === 'string' && descriptor.completedAt.trim().length > 0
+              ? descriptor.completedAt
+              : normalizedDone
+              ? base[id]?.completedAt ?? null
+              : null;
+          const normalizedTimeSpent =
+            typeof descriptor.timeSpentSeconds === 'number' && Number.isFinite(descriptor.timeSpentSeconds)
+              ? Math.max(0, descriptor.timeSpentSeconds)
+              : base[id]?.timeSpentSeconds;
 
           if (base[id]) {
             updated += 1;
@@ -146,13 +213,16 @@ export function useTaskStore() {
             added += 1;
           }
 
-          base[id] = {
+          base[id] = finalizeTask({
             id,
             title: normalizedTitle,
             due: normalizedDue,
             quadrant: normalizedQuadrant,
             done: normalizedDone,
-          };
+            createdAt: normalizedCreatedAt ?? base[id]?.createdAt,
+            completedAt: normalizedDone ? normalizedCompletedAt : null,
+            timeSpentSeconds: normalizedTimeSpent,
+          });
         }
 
         nextTasks = base;
@@ -173,21 +243,25 @@ export function useTaskStore() {
             Object.entries(tasksMap).forEach(([id, dueValue]) => {
               const due = normalizeDue(dueValue);
               if (base[id]) {
-                base[id] = {
-                  ...base[id],
+                base[id] = finalizeTask({
+                  id,
                   title: id,
                   due,
                   quadrant: quadrantKey,
-                };
+                  done: base[id].done ?? false,
+                  createdAt: base[id].createdAt,
+                  completedAt: base[id].completedAt,
+                  timeSpentSeconds: base[id].timeSpentSeconds,
+                });
                 updated += 1;
               } else {
-                base[id] = {
+                base[id] = finalizeTask({
                   id,
                   title: id,
                   due,
                   quadrant: quadrantKey,
                   done: false,
-                };
+                });
                 added += 1;
               }
             });
@@ -204,20 +278,25 @@ export function useTaskStore() {
           for (const [id, dueValue] of entries) {
             const due = normalizeDue(dueValue as string);
             if (base[id]) {
-              base[id] = {
-                ...base[id],
+              base[id] = finalizeTask({
+                id,
                 title: id,
                 due,
-              };
+                quadrant: base[id].quadrant,
+                done: base[id].done ?? false,
+                createdAt: base[id].createdAt,
+                completedAt: base[id].completedAt,
+                timeSpentSeconds: base[id].timeSpentSeconds,
+              });
               updated += 1;
             } else {
-              base[id] = {
+              base[id] = finalizeTask({
                 id,
                 title: id,
                 due,
                 quadrant: 'backlog',
                 done: false,
-              };
+              });
               added += 1;
             }
           }
@@ -247,17 +326,39 @@ export function useTaskStore() {
     });
   }, []);
 
-  const updateTask = useCallback((taskId: string, updates: Partial<Pick<Task, 'title' | 'due' | 'done'>>) => {
+  const updateTask = useCallback((taskId: string, updates: Partial<Pick<Task, 'title' | 'due' | 'done' | 'timeSpentSeconds'>>) => {
     setTasks((prev) => {
       const current = prev[taskId];
       if (!current) {
         return prev;
       }
+      const nextDone = updates.done !== undefined ? updates.done : current.done ?? false;
+      const completedAt =
+        updates.done !== undefined
+          ? updates.done
+            ? new Date().toISOString()
+            : null
+          : current.completedAt ?? null;
+      const createdAt = current.createdAt ?? new Date().toISOString();
+      const nextTimeSpent =
+        updates.timeSpentSeconds !== undefined
+          ? Math.max(0, updates.timeSpentSeconds)
+          : typeof current.timeSpentSeconds === 'number'
+          ? current.timeSpentSeconds
+          : 0;
+      const autoTimeSpent =
+        updates.done && !current.done && completedAt
+          ? Math.max(0, new Date(completedAt).getTime() - new Date(createdAt).getTime()) / 1000
+          : nextTimeSpent;
+      const finalTimeSpent = Math.max(nextTimeSpent, autoTimeSpent);
       const next: Task = {
         ...current,
         ...updates,
         due: updates.due !== undefined ? normalizeDue(updates.due) : current.due,
-        done: updates.done !== undefined ? updates.done : current.done ?? false,
+        done: nextDone,
+        createdAt,
+        completedAt,
+        timeSpentSeconds: finalTimeSpent,
       };
       return {
         ...prev,
@@ -281,6 +382,40 @@ export function useTaskStore() {
           due: normalizedDue,
           quadrant: normalizedQuadrant,
           done: false,
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+          timeSpentSeconds: 0,
+        },
+      };
+    });
+  }, []);
+
+  const deleteTask = useCallback((taskId: string) => {
+    setTasks((prev) => {
+      if (!prev[taskId]) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+  }, []);
+
+  const addTimeToTask = useCallback((taskId: string, seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      return;
+    }
+    setTasks((prev) => {
+      const current = prev[taskId];
+      if (!current) {
+        return prev;
+      }
+      const nextTimeSpent = (current.timeSpentSeconds ?? 0) + seconds;
+      return {
+        ...prev,
+        [taskId]: {
+          ...current,
+          timeSpentSeconds: nextTimeSpent,
         },
       };
     });
@@ -315,6 +450,8 @@ export function useTaskStore() {
     updateTask,
     resetTask,
     addTask,
+    deleteTask,
+    addTimeToTask,
     clearCorruptedState,
     loadError,
   };

@@ -14,6 +14,8 @@ interface PomodoroBarProps {
   config: PomodoroConfig;
   stats: PomodoroStats;
   focusModeEnabled: boolean;
+  hideCompletedToday: boolean;
+  hideCompletedAll: boolean;
   onPause: () => void;
   onResume: () => void;
   onReset: () => void;
@@ -21,6 +23,8 @@ interface PomodoroBarProps {
   onToggleFocusMode: () => void;
   onUpdateConfig: (partial: Partial<PomodoroConfig>) => void;
   onClearStats: () => void;
+  onToggleHideCompletedToday: (value: boolean) => void;
+  onToggleHideCompletedAll: (value: boolean) => void;
 }
 
 function formatTime(totalSeconds: number) {
@@ -79,6 +83,8 @@ export function PomodoroBar({
   config,
   stats,
   focusModeEnabled,
+  hideCompletedToday,
+  hideCompletedAll,
   onPause,
   onResume,
   onReset,
@@ -86,6 +92,8 @@ export function PomodoroBar({
   onToggleFocusMode,
   onUpdateConfig,
   onClearStats,
+  onToggleHideCompletedToday,
+  onToggleHideCompletedAll,
 }: PomodoroBarProps) {
   const [showSettings, setShowSettings] = useState(false);
   const modeMeta = getModeMeta(mode);
@@ -124,10 +132,15 @@ export function PomodoroBar({
                     <path d="M9 4a1 1 0 0 1 1 1v14a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Zm6 0a1 1 0 0 1 1 1v14a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Z" />
                   </svg>
                 </button>
-                <button type="button" className={styles.iconControl} onClick={onReset} aria-label="Остановить таймер">
+                <button
+                  type="button"
+                  className={`${styles.iconControl} ${styles.iconControlStop}`.trim()}
+                  onClick={onReset}
+                  aria-label="Остановить таймер"
+                >
                   <span className={styles.visuallyHidden}>Остановить таймер</span>
                   <svg viewBox="0 0 24 24" aria-hidden className={styles.iconControlSvg}>
-                    <path d="M7 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2Z" />
+                    <path d="M8 8a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1Z" />
                   </svg>
                 </button>
               </>
@@ -145,10 +158,15 @@ export function PomodoroBar({
                     <path d="M8.25 4.64a1 1 0 0 1 1.49-.86l9 5.36a1 1 0 0 1 0 1.72l-9 5.36A1 1 0 0 1 8 15.36V4.64Z" />
                   </svg>
                 </button>
-                <button type="button" className={styles.iconControl} onClick={onReset} aria-label="Остановить таймер">
+                <button
+                  type="button"
+                  className={`${styles.iconControl} ${styles.iconControlStop}`.trim()}
+                  onClick={onReset}
+                  aria-label="Остановить таймер"
+                >
                   <span className={styles.visuallyHidden}>Остановить таймер</span>
                   <svg viewBox="0 0 24 24" aria-hidden className={styles.iconControlSvg}>
-                    <path d="M7 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2Z" />
+                    <path d="M8 8a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1Z" />
                   </svg>
                 </button>
               </>
@@ -265,6 +283,28 @@ export function PomodoroBar({
               />
               Длинный отдых после цикла
             </label>
+            <div className={styles.settingsGroup}>
+              <span className={styles.settingsGroupTitle}>Отображение задач</span>
+              <label className={styles.toggle}>
+                <input
+                  type="checkbox"
+                  checked={hideCompletedToday}
+                  onChange={(event) => onToggleHideCompletedToday(event.target.checked)}
+                />
+                Скрыть выполненные сегодня
+              </label>
+              <label
+                className={`${styles.toggle} ${!hideCompletedToday ? styles.toggleDisabled : ''}`.trim()}
+              >
+                <input
+                  type="checkbox"
+                  checked={hideCompletedAll}
+                  disabled={!hideCompletedToday}
+                  onChange={(event) => onToggleHideCompletedAll(event.target.checked)}
+                />
+                Скрыть все выполненные
+              </label>
+            </div>
             <button type="button" className={styles.clearStats} onClick={onClearStats}>
               Сбросить статистику
             </button>

@@ -6,6 +6,9 @@ export interface Task {
   due?: string | null;
   quadrant: Quadrant;
   done?: boolean;
+  createdAt?: string;
+  completedAt?: string | null;
+  timeSpentSeconds?: number;
 }
 
 export type TaskMap = Record<string, Task>;

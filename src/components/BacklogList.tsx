@@ -7,8 +7,6 @@ import styles from './BacklogList.module.css';
 interface BacklogListProps {
   tasks: Task[];
   totalCount?: number;
-  hideCompleted: boolean;
-  onHideCompletedChange: (value: boolean) => void;
   onDropTask: (taskId: string) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   collapsed: boolean;
@@ -27,16 +25,14 @@ interface BacklogListProps {
   title?: string;
   subtitle?: string;
   collapsible?: boolean;
-  showCompletionToggle?: boolean;
   emptyMessage?: string;
   showQuadrantBadge?: boolean;
+  onDeleteTask: (taskId: string) => void;
 }
 
 export function BacklogList({
   tasks,
   totalCount,
-  hideCompleted,
-  onHideCompletedChange,
   onDropTask,
   onUpdateTask,
   collapsed,
@@ -45,9 +41,9 @@ export function BacklogList({
   title,
   subtitle,
   collapsible = true,
-  showCompletionToggle = true,
   emptyMessage,
   showQuadrantBadge = false,
+  onDeleteTask,
 }: BacklogListProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const displayedCount = totalCount ?? tasks.length;
@@ -80,7 +76,7 @@ export function BacklogList({
         <div className={styles.headerTitle}>
           <h2 className={styles.title}>{title ?? 'Бэклог'}</h2>
           <span className={styles.count}>{displayedCount}</span>
-          {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
+          {subtitle ? <span className={styles.subtitle}>{subtitle}</span> : null}
         </div>
         <div className={styles.headerActions}>
           {collapsible ? (
@@ -93,16 +89,6 @@ export function BacklogList({
             >
               {collapsed ? 'Развернуть' : 'Свернуть'}
             </button>
-          ) : null}
-          {showCompletionToggle ? (
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={hideCompleted}
-                onChange={(event) => onHideCompletedChange(event.target.checked)}
-              />
-              Скрыть выполненные
-            </label>
           ) : null}
         </div>
       </div>
@@ -118,8 +104,6 @@ export function BacklogList({
             <div className={styles.empty}>
               {emptyMessage
                 ? emptyMessage
-                : hideCompleted
-                ? 'Нет задач для отображения. Попробуйте отключить фильтр «Скрыть выполненные».'
                 : 'Все задачи распределены по квадрантам'}
             </div>
           ) : (
@@ -144,6 +128,7 @@ export function BacklogList({
                     : undefined
                 }
                 showQuadrantBadge={showQuadrantBadge}
+                onDelete={onDeleteTask}
               />
             ))
           )}

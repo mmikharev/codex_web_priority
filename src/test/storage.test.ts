@@ -46,7 +46,7 @@ describe('storage migration', () => {
     expect(window.localStorage.getItem(BACKUP_KEY)).toBe(JSON.stringify(rawMap));
   });
 
-  it('persists version 2 payload on save', () => {
+  it('persists latest payload version on save', () => {
     const tasks: TaskMap = {
       foo: { id: 'foo', title: 'Foo', quadrant: 'Q1', done: true },
     };
@@ -56,6 +56,6 @@ describe('storage migration', () => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     expect(stored).not.toBeNull();
     const parsed = JSON.parse(String(stored));
-    expect(parsed).toMatchObject({ version: 2, tasks: { foo: { done: true } } });
+    expect(parsed).toMatchObject({ version: 3, tasks: { foo: { done: true } } });
   });
 });

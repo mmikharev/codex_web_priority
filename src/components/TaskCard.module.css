@@ -25,6 +25,21 @@
   opacity: 0.7;
 }
 
+.cardCompleted {
+  animation: card-completed 0.6s ease;
+}
+
+@keyframes card-completed {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.2);
+    transform: scale(1.01);
+  }
+  100% {
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
 .header {
   display: flex;
   align-items: flex-start;
@@ -186,105 +201,122 @@
   color: rgba(148, 163, 184, 0.85);
 }
 
-.pomodoro {
+.controlRow {
   margin-top: 14px;
-  padding: 10px 12px;
-  border-radius: 14px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.pomodoroActive {
-  transform: translateY(-1px);
-  box-shadow: 0 16px 24px -18px rgba(15, 23, 42, 0.35);
-}
-
-.pomodoroInfo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.pomodoroLabel {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 600;
-  color: white;
-}
-
-.pomodoroCount {
-  font-size: 18px;
-  font-weight: 700;
-  color: white;
-}
-
-.pomodoroTime {
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
-}
-
-.pomodoroActions {
-  display: flex;
-  gap: 10px;
   flex-wrap: wrap;
 }
 
-.pomodoroIconButton,
-.pomodoroIconButtonSecondary {
-  width: 40px;
-  height: 40px;
+.timerControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timerButton {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: rgba(59, 130, 246, 0.14);
+  color: rgba(37, 99, 235, 0.9);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.pomodoroIconButton {
-  background: rgba(255, 255, 255, 0.24);
-  color: white;
-  box-shadow: 0 16px 28px -20px rgba(15, 23, 42, 0.35);
-}
-
-.pomodoroIconButtonSecondary {
-  background: rgba(15, 23, 42, 0.2);
-  color: white;
-  box-shadow: 0 16px 28px -22px rgba(15, 23, 42, 0.4);
-}
-
-.pomodoroIconButton:hover,
-.pomodoroIconButton:focus-visible,
-.pomodoroIconButtonSecondary:hover,
-.pomodoroIconButtonSecondary:focus-visible {
-  transform: translateY(-2px);
+.timerButton:hover,
+.timerButton:focus-visible {
   outline: none;
+  background: rgba(59, 130, 246, 0.22);
+  transform: translateY(-1px);
 }
 
-.pomodoroIconSvg {
-  width: 18px;
-  height: 18px;
+.timerButtonStop {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.92), rgba(239, 68, 68, 0.9));
+  color: #ffffff;
+}
+
+.timerButtonStop:hover,
+.timerButtonStop:focus-visible {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 1), rgba(220, 38, 38, 0.95));
+}
+
+.timerIcon {
+  width: 16px;
+  height: 16px;
   fill: currentColor;
 }
 
-.pomodoroFocus {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.85), rgba(22, 163, 74, 0.8));
+.controlMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--task-card-meta-text, rgba(15, 23, 42, 0.65));
 }
 
-.pomodoroShort {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.85), rgba(37, 99, 235, 0.8));
+.pomodoroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.16);
+  color: rgba(14, 116, 144, 0.95);
+  font-weight: 600;
 }
 
-.pomodoroLong {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.85), rgba(124, 58, 237, 0.8));
+.badgeIcon {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  opacity: 0.85;
 }
 
-.pomodoroIdle {
-  background: linear-gradient(135deg, rgba(148, 163, 184, 0.65), rgba(100, 116, 139, 0.6));
+.timerRemaining {
+  font-weight: 600;
+  color: rgba(22, 163, 74, 0.92);
+  font-size: 13px;
+}
+
+.timeSpent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.deleteButton {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239, 68, 68, 0.12);
+  color: rgba(220, 38, 38, 0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.deleteButton:hover,
+.deleteButton:focus-visible {
+  outline: none;
+  background: rgba(239, 68, 68, 0.18);
+  color: rgba(185, 28, 28, 0.95);
+  transform: translateY(-1px);
+}
+
+.deleteIcon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
