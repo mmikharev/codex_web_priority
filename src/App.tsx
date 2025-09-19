@@ -38,7 +38,7 @@ const DEFAULT_COLLAPSE_STATE: CollapseState = {
   },
 };
 
-function filterBacklog(tasks: Task[], query: string, hideCompleted: boolean): Task[] {
+function filterTasks(tasks: Task[], query: string, hideCompleted: boolean): Task[] {
   const normalized = query.trim().toLowerCase();
 
   return sortTasks(
@@ -83,6 +83,7 @@ export default function App() {
   const [manualFormFocusToken, setManualFormFocusToken] = useState(0);
   const [isTaskModalOpen, setTaskModalOpen] = useState(false);
   const [focusModeEnabled, setFocusModeEnabled] = useState(false);
+  const [taskModalTab, setTaskModalTab] = useState<'quick' | 'import'>('quick');
 
   const [collapseState, setCollapseState] = useState<CollapseState>(() => ({
     backlog: DEFAULT_COLLAPSE_STATE.backlog,
@@ -93,14 +94,22 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const importTextareaRef = useRef<HTMLTextAreaElement>(null);
   const manualFormRef = useRef<HTMLFormElement>(null);
+  const modalFocusHandledRef = useRef<'quick' | 'import' | null>(null);
 
   const backlogTasks = quadrants.backlog ?? [];
-  const filteredBacklog = useMemo(
-    () => filterBacklog(backlogTasks, searchQuery, hideCompleted),
-    [backlogTasks, hideCompleted, searchQuery],
-  );
-
   const allTasks = useMemo(() => Object.values(tasks), [tasks]);
+  const backlogDisplayTasks = useMemo(() => {
+    if (searchQuery.trim()) {
+      return filterTasks(allTasks, searchQuery, hideCompleted);
+    }
+    return filterTasks(backlogTasks, '', hideCompleted);
+  }, [allTasks, backlogTasks, hideCompleted, searchQuery]);
+  const backlogTotalCount = useMemo(() => {
+    if (searchQuery.trim()) {
+      return backlogDisplayTasks.length;
+    }
+    return backlogTasks.length;
+  }, [backlogDisplayTasks, backlogTasks, searchQuery]);
   const activeTask = useMemo(() => (pomodoro.activeTaskId ? tasks[pomodoro.activeTaskId] ?? null : null), [pomodoro.activeTaskId, tasks]);
 
   const pomodoroControls = useMemo(
@@ -215,13 +224,24 @@ export default function App() {
     setHideCompleted(value);
   }, []);
 
-  const handleQuadrantCreateRequest = useCallback(
-    (quadrant: QuadrantId) => {
-      setManualFormQuadrant(quadrant);
-      setManualFormFocusToken((token) => token + 1);
+  const openTaskModal = useCallback(
+    (options?: { tab?: 'quick' | 'import'; quadrant?: Quadrant }) => {
+      if (options?.quadrant) {
+        setManualFormQuadrant(options.quadrant);
+      } else if ((options?.tab ?? 'quick') === 'quick') {
+        setManualFormQuadrant('backlog');
+      }
+      setTaskModalTab(options?.tab ?? 'quick');
       setTaskModalOpen(true);
     },
     [],
+  );
+
+  const handleQuadrantCreateRequest = useCallback(
+    (quadrant: QuadrantId) => {
+      openTaskModal({ quadrant, tab: 'quick' });
+    },
+    [openTaskModal],
   );
 
   const handleToggleBacklogCollapse = useCallback(() => {
@@ -348,8 +368,11 @@ export default function App() {
 
       if (normalizedKey === 'i') {
         event.preventDefault();
-        importTextareaRef.current?.focus();
-        importTextareaRef.current?.select?.();
+        openTaskModal({ tab: 'import' });
+        window.requestAnimationFrame(() => {
+          importTextareaRef.current?.focus();
+          importTextareaRef.current?.select?.();
+        });
         return;
       }
 
@@ -380,7 +403,7 @@ export default function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [moveTask, searchQuery, pomodoro]);
+  }, [moveTask, openTaskModal, searchQuery, pomodoro]);
 
   useEffect(() => {
     if (!importText) {
@@ -396,6 +419,29 @@ export default function App() {
     }
   }, [pomodoro.runState]);
 
+  useEffect(() => {
+    if (!isTaskModalOpen) {
+      modalFocusHandledRef.current = null;
+      return;
+    }
+    if (taskModalTab === 'import') {
+      if (modalFocusHandledRef.current === 'import') {
+        return;
+      }
+      modalFocusHandledRef.current = 'import';
+      window.requestAnimationFrame(() => {
+        importTextareaRef.current?.focus();
+        importTextareaRef.current?.select?.();
+      });
+      return;
+    }
+
+    if (modalFocusHandledRef.current !== 'quick') {
+      modalFocusHandledRef.current = 'quick';
+      setManualFormFocusToken((token) => token + 1);
+    }
+  }, [isTaskModalOpen, taskModalTab]);
+
   const handleSelectQuadrant = useCallback((quadrant: Quadrant) => {
     const dropArea = document.getElementById(`quadrant-${quadrant}`);
     dropArea?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -408,6 +454,17 @@ export default function App() {
     setFocusModeEnabled((value) => !value);
   }, [pomodoro.activeTaskId]);
 
+  useEffect(() => {
+    if (!focusModeEnabled) {
+      return;
+    }
+    if (!activeTask || !activeTask.done) {
+      return;
+    }
+    setFocusModeEnabled(false);
+    pomodoro.reset();
+  }, [activeTask, focusModeEnabled, pomodoro.reset]);
+
   return (
     <div className={styles.app}>
       {loadError ? (
@@ -419,9 +476,9 @@ export default function App() {
         </div>
       ) : null}
 
-      <header className={styles.hero}>
+      <header className={styles.header}>
         <PriorityOverview quadrants={quadrants} onSelect={handleSelectQuadrant} />
-        <div className={styles.actionRow}>
+        <div className={styles.toolbar}>
           <SearchBar
             value={searchQuery}
             expanded={searchExpanded || !!searchQuery}
@@ -430,15 +487,8 @@ export default function App() {
             onToggle={setSearchExpanded}
             inputRef={searchInputRef}
           />
-          <div className={styles.topControls}>
-            <AddTaskButton
-              onClick={() => {
-                setTaskModalOpen(true);
-                setManualFormFocusToken((token) => token + 1);
-              }}
-            />
-            <ThemeToggleButton theme={theme} onToggle={toggleTheme} />
-          </div>
+          <AddTaskButton onClick={() => openTaskModal({ tab: 'quick' })} />
+          <ThemeToggleButton theme={theme} onToggle={toggleTheme} />
         </div>
       </header>
 
@@ -481,7 +531,89 @@ export default function App() {
         </div>
       ) : (
         <>
-          <div className={styles.layoutGrid}>
+          <div className={styles.mainContent}>
+            <aside className={styles.sidebar}>
+              <BacklogList
+                tasks={backlogDisplayTasks}
+                totalCount={backlogTotalCount}
+                hideCompleted={hideCompleted}
+                onHideCompletedChange={handleHideCompletedChange}
+                onDropTask={handleBacklogDrop}
+                onUpdateTask={handleUpdateTask}
+                collapsed={searchQuery ? false : collapseState.backlog}
+                onToggleCollapse={searchQuery ? () => undefined : handleToggleBacklogCollapse}
+                pomodoroControls={pomodoroControls}
+                title={searchQuery ? 'Результаты поиска' : 'Бэклог'}
+                subtitle={
+                  searchQuery
+                    ? `Найдено ${backlogDisplayTasks.length} из ${allTasks.length} задач`
+                    : hideCompleted
+                    ? 'Скрыты выполненные задачи'
+                    : undefined
+                }
+                collapsible={!searchQuery}
+                showCompletionToggle={!searchQuery}
+                emptyMessage={
+                  searchQuery
+                    ? `По запросу «${searchQuery.trim()}» ничего не найдено`
+                    : hideCompleted
+                    ? 'Нет задач после применения фильтра'
+                    : undefined
+                }
+                showQuadrantBadge={Boolean(searchQuery.trim())}
+              />
+              <p className={styles.hotkeysHint}>
+                Горячие клавиши: / — поиск, i — импорт, Esc — очистить поиск, 0–4 — перемещение задач, P — старт/пауза, R —
+                сброс таймера
+              </p>
+            </aside>
+            <div className={styles.boardSection}>
+              <QuadrantBoard
+                quadrants={{ Q1: quadrants.Q1 ?? [], Q2: quadrants.Q2 ?? [], Q3: quadrants.Q3 ?? [], Q4: quadrants.Q4 ?? [] }}
+                collapsed={collapseState.quadrants}
+                onDropTask={handleQuadrantDrop}
+                onUpdateTask={handleUpdateTask}
+                onResetTask={resetTask}
+                onToggleCollapse={handleToggleQuadrantCollapse}
+                onRequestCreateTask={handleQuadrantCreateRequest}
+                pomodoroControls={pomodoroControls}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <Modal open={isTaskModalOpen} onClose={() => setTaskModalOpen(false)} title="Добавление задач">
+        <div className={styles.modalTabs} role="tablist" aria-label="Способ добавления задач">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={taskModalTab === 'quick'}
+            className={`${styles.modalTabButton} ${taskModalTab === 'quick' ? styles.modalTabActive : ''}`.trim()}
+            onClick={() => setTaskModalTab('quick')}
+          >
+            Быстрое добавление
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={taskModalTab === 'import'}
+            className={`${styles.modalTabButton} ${taskModalTab === 'import' ? styles.modalTabActive : ''}`.trim()}
+            onClick={() => setTaskModalTab('import')}
+          >
+            Импорт JSON
+          </button>
+        </div>
+        <div className={styles.modalContentArea}>
+          {taskModalTab === 'quick' ? (
+            <ManualTaskForm
+              ref={manualFormRef}
+              onCreateTask={handleCreateTask}
+              initialQuadrant={manualFormQuadrant}
+              focusTrigger={manualFormFocusToken}
+              variant="modal"
+            />
+          ) : (
             <ImportPanel
               value={importText}
               onChange={setImportText}
@@ -493,47 +625,8 @@ export default function App() {
               error={importError}
               textareaRef={importTextareaRef}
             />
-            <div>
-              <BacklogList
-                tasks={filteredBacklog}
-                totalCount={backlogTasks.length}
-                hideCompleted={hideCompleted}
-                onHideCompletedChange={handleHideCompletedChange}
-                onDropTask={handleBacklogDrop}
-                onUpdateTask={handleUpdateTask}
-                collapsed={collapseState.backlog}
-                onToggleCollapse={handleToggleBacklogCollapse}
-                pomodoroControls={pomodoroControls}
-              />
-              <p className={styles.hotkeysHint}>
-                Горячие клавиши: / — поиск, i — импорт, Esc — очистить поиск, 0–4 — перемещение задач, P — старт/пауза, R —
-                сброс таймера
-              </p>
-            </div>
-          </div>
-
-          <div className={styles.boardRow}>
-            <QuadrantBoard
-              quadrants={{ Q1: quadrants.Q1 ?? [], Q2: quadrants.Q2 ?? [], Q3: quadrants.Q3 ?? [], Q4: quadrants.Q4 ?? [] }}
-              collapsed={collapseState.quadrants}
-              onDropTask={handleQuadrantDrop}
-              onUpdateTask={handleUpdateTask}
-              onResetTask={resetTask}
-              onToggleCollapse={handleToggleQuadrantCollapse}
-              onRequestCreateTask={handleQuadrantCreateRequest}
-              pomodoroControls={pomodoroControls}
-            />
-          </div>
-        </>
-      )}
-
-      <Modal open={isTaskModalOpen} onClose={() => setTaskModalOpen(false)} title="Быстрое добавление">
-        <ManualTaskForm
-          ref={manualFormRef}
-          onCreateTask={handleCreateTask}
-          initialQuadrant={manualFormQuadrant}
-          focusTrigger={manualFormFocusToken}
-        />
+          )}
+        </div>
       </Modal>
     </div>
   );

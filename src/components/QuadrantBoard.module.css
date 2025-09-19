@@ -1,22 +1,21 @@
 .board {
   display: grid;
   gap: 24px;
-  justify-content: center;
-  grid-template-columns: minmax(260px, 1fr);
-  width: min(100%, 760px);
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
 }
 
 @media (min-width: 768px) {
   .board {
-    grid-template-columns: repeat(2, minmax(280px, 360px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 .zone {
   background: var(--quadrant-bg);
-  border-radius: 24px;
+  border-radius: 26px;
   border: 1px solid var(--quadrant-border);
-  padding: 18px;
+  padding: 20px;
   box-shadow: var(--quadrant-shadow);
   display: flex;
   flex-direction: column;

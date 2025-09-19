@@ -115,31 +115,73 @@ export function PomodoroBar({
           </div>
         </div>
         <div className={styles.controls}>
-          {runState === 'running' ? (
-            <button type="button" className={styles.controlButton} onClick={onPause}>
-              Пауза (P)
+          <div className={styles.primaryControls}>
+            {runState === 'running' ? (
+              <>
+                <button type="button" className={styles.iconControl} onClick={onPause} aria-label="Пауза таймера">
+                  <span className={styles.visuallyHidden}>Пауза таймера</span>
+                  <svg viewBox="0 0 24 24" aria-hidden className={styles.iconControlSvg}>
+                    <path d="M9 4a1 1 0 0 1 1 1v14a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Zm6 0a1 1 0 0 1 1 1v14a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Z" />
+                  </svg>
+                </button>
+                <button type="button" className={styles.iconControl} onClick={onReset} aria-label="Остановить таймер">
+                  <span className={styles.visuallyHidden}>Остановить таймер</span>
+                  <svg viewBox="0 0 24 24" aria-hidden className={styles.iconControlSvg}>
+                    <path d="M7 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2Z" />
+                  </svg>
+                </button>
+              </>
+            ) : runState === 'paused' ? (
+              <>
+                <button
+                  type="button"
+                  className={`${styles.iconControl} ${!activeTask ? styles.iconControlDisabled : ''}`.trim()}
+                  onClick={onResume}
+                  aria-label="Продолжить таймер"
+                  disabled={!activeTask}
+                >
+                  <span className={styles.visuallyHidden}>Продолжить таймер</span>
+                  <svg viewBox="0 0 24 24" aria-hidden className={styles.iconControlSvg}>
+                    <path d="M8.25 4.64a1 1 0 0 1 1.49-.86l9 5.36a1 1 0 0 1 0 1.72l-9 5.36A1 1 0 0 1 8 15.36V4.64Z" />
+                  </svg>
+                </button>
+                <button type="button" className={styles.iconControl} onClick={onReset} aria-label="Остановить таймер">
+                  <span className={styles.visuallyHidden}>Остановить таймер</span>
+                  <svg viewBox="0 0 24 24" aria-hidden className={styles.iconControlSvg}>
+                    <path d="M7 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2Z" />
+                  </svg>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className={`${styles.iconControl} ${!activeTask ? styles.iconControlDisabled : ''}`.trim()}
+                onClick={onResume}
+                aria-label="Запустить таймер"
+                disabled={!activeTask}
+              >
+                <span className={styles.visuallyHidden}>Запустить таймер</span>
+                <svg viewBox="0 0 24 24" aria-hidden className={styles.iconControlSvg}>
+                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm-.75 2.5a.75.75 0 0 1 1.5 0V12l3.5 2.1a.75.75 0 1 1-.75 1.3l-4-2.4a.75.75 0 0 1-.37-.64Z" />
+                </svg>
+              </button>
+            )}
+          </div>
+          <div className={styles.secondaryControls}>
+            <button type="button" className={styles.controlButton} onClick={onSkip} disabled={mode === 'idle'}>
+              Следующий
             </button>
-          ) : (
-            <button type="button" className={styles.controlButton} onClick={onResume} disabled={!activeTask}>
-              Старт (P)
+            <button
+              type="button"
+              className={`${styles.controlButton} ${focusModeEnabled ? styles.controlActive : ''}`.trim()}
+              onClick={onToggleFocusMode}
+            >
+              Фокус-режим
             </button>
-          )}
-          <button type="button" className={styles.controlButton} onClick={onSkip} disabled={mode === 'idle'}>
-            Следующий
-          </button>
-          <button type="button" className={styles.controlButton} onClick={onReset}>
-            Сброс (R)
-          </button>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${focusModeEnabled ? styles.controlActive : ''}`.trim()}
-            onClick={onToggleFocusMode}
-          >
-            Фокус-режим
-          </button>
-          <button type="button" className={styles.settingsToggle} onClick={() => setShowSettings((value) => !value)}>
-            Настройки
-          </button>
+            <button type="button" className={styles.settingsToggle} onClick={() => setShowSettings((value) => !value)}>
+              Настройки
+            </button>
+          </div>
         </div>
       </div>
       <div className={styles.bottomRow}>
