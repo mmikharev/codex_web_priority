@@ -81,6 +81,7 @@
   --backlog-shadow-hover: 0 32px 60px -42px rgba(15, 23, 42, 0.5);
   --backlog-title: rgba(15, 23, 42, 0.9);
   --backlog-count: rgba(14, 116, 144, 0.9);
+  --backlog-subtitle: rgba(15, 23, 42, 0.55);
   --backlog-checkbox-text: rgba(15, 23, 42, 0.65);
   --backlog-toggle-bg: rgba(15, 23, 42, 0.08);
   --backlog-toggle-text: rgba(15, 23, 42, 0.75);
@@ -181,6 +182,7 @@
   --backlog-shadow-hover: 0 30px 60px -36px rgba(2, 6, 23, 0.9);
   --backlog-title: rgba(226, 232, 240, 0.95);
   --backlog-count: rgba(94, 234, 212, 0.95);
+  --backlog-subtitle: rgba(148, 163, 184, 0.8);
   --backlog-checkbox-text: rgba(148, 163, 184, 0.8);
   --backlog-toggle-bg: rgba(37, 99, 235, 0.25);
   --backlog-toggle-text: rgba(191, 219, 254, 0.95);

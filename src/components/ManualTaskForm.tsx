@@ -15,6 +15,7 @@ interface ManualTaskFormProps {
   onCreateTask: (task: { title: string; due: string | null; quadrant: Quadrant }) => void;
   initialQuadrant?: Quadrant;
   focusTrigger?: number;
+  variant?: 'standalone' | 'modal';
 }
 
 const QUADRANT_OPTIONS: Array<{ value: Quadrant; label: string }> = [
@@ -26,7 +27,7 @@ const QUADRANT_OPTIONS: Array<{ value: Quadrant; label: string }> = [
 ];
 
 export const ManualTaskForm = forwardRef<HTMLFormElement, ManualTaskFormProps>(
-  ({ onCreateTask, initialQuadrant = 'backlog', focusTrigger }, ref) => {
+  ({ onCreateTask, initialQuadrant = 'backlog', focusTrigger, variant = 'standalone' }, ref) => {
     const [title, setTitle] = useState('');
     const [due, setDue] = useState('');
     const [quadrant, setQuadrant] = useState<Quadrant>(initialQuadrant);
@@ -102,9 +103,9 @@ export const ManualTaskForm = forwardRef<HTMLFormElement, ManualTaskFormProps>(
     };
 
     return (
-      <form ref={ref} className={styles.form} onSubmit={handleSubmit}>
-        <div className={styles.header}>
-          <h2 className={styles.title}>Быстрое добавление</h2>
+      <form ref={ref} className={`${styles.form} ${variant === 'modal' ? styles.formModal : ''}`.trim()} onSubmit={handleSubmit}>
+        <div className={variant === 'modal' ? styles.modalHeader : styles.header}>
+          <h2 className={variant === 'modal' ? styles.modalTitle : styles.title}>Быстрое добавление</h2>
           {feedback ? <span className={styles.feedback}>{feedback}</span> : null}
         </div>
         <label className={styles.label}>

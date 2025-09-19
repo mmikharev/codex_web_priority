@@ -2,51 +2,59 @@
   padding: clamp(20px, 4vw, 48px);
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  max-width: 1280px;
+  gap: 32px;
+  max-width: 1420px;
   margin: 0 auto;
 }
 
-.hero {
+.header {
   display: grid;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(16px, 4vw, 32px);
+  align-items: start;
 }
 
-.actionRow {
+.toolbar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   justify-content: flex-end;
 }
 
-.actionRow > * {
+.toolbar > * {
   flex-shrink: 0;
 }
 
-.topControls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.layoutGrid {
+.mainContent {
   display: grid;
-  gap: 24px;
+  gap: clamp(20px, 3vw, 36px);
+  align-items: start;
 }
 
-@media (min-width: 1080px) {
-  .layoutGrid {
-    grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
-    align-items: start;
+@media (min-width: 1180px) {
+  .mainContent {
+    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
   }
 }
 
-.boardRow {
+@media (max-width: 1179px) {
+  .sidebar {
+    position: static;
+  }
+}
+
+.sidebar {
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  align-items: center;
+  gap: 18px;
+  position: sticky;
+  top: clamp(16px, 5vh, 48px);
+}
+
+.boardSection {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .alert {
@@ -84,4 +92,45 @@
   font-weight: 700;
   margin: 0;
   color: var(--focus-overlay-text);
+}
+
+.modalTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--toolbar-border);
+  box-shadow: var(--toolbar-shadow);
+  margin-bottom: 18px;
+}
+
+.modalTabButton {
+  border: none;
+  background: none;
+  color: var(--toolbar-icon-color);
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.modalTabButton:hover,
+.modalTabButton:focus-visible {
+  background: var(--toolbar-hover-bg);
+  color: var(--toolbar-icon-color-hover);
+  outline: none;
+}
+
+.modalTabActive {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(14, 165, 233, 0.85));
+  color: #ffffff;
+  box-shadow: 0 12px 24px -16px rgba(37, 99, 235, 0.7);
+}
+
+.modalContentArea {
+  max-height: min(70vh, 620px);
+  overflow: auto;
 }

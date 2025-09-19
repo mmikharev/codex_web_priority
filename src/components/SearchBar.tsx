@@ -36,7 +36,9 @@ export function SearchBar({ value, expanded, onChange, onClear, onToggle, inputR
         onClick={() => onToggle(!expanded)}
       >
         <svg viewBox="0 0 24 24" className={styles.icon} aria-hidden>
-          <path d="M21 21a1 1 0 0 1-1.71.71l-4.92-4.93a7 7 0 1 1 1.41-1.41l4.93 4.92A1 1 0 0 1 21 21Zm-10-4a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" />
+          <path
+            d="M10.75 2.5a8.25 8.25 0 0 1 6.4 13.52l4.17 4.16a1.35 1.35 0 0 1-1.91 1.91l-4.16-4.17A8.25 8.25 0 1 1 10.75 2.5Zm0 2.7a5.55 5.55 0 1 0 0 11.1 5.55 5.55 0 0 0 0-11.1Z"
+          />
         </svg>
       </button>
       <div className={styles.inputContainer}>
@@ -45,7 +47,7 @@ export function SearchBar({ value, expanded, onChange, onClear, onToggle, inputR
           className={styles.searchInput}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Поиск по бэклогу"
+          placeholder="Поиск по всем задачам"
           type="search"
           aria-hidden={!expanded}
         />

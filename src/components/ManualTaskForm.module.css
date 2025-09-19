@@ -12,6 +12,13 @@
   color: #0f172a;
 }
 
+.formModal {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: none;
+  width: 100%;
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -19,10 +26,26 @@
   gap: 12px;
 }
 
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
 .title {
   margin: 0;
   font-size: 17px;
   font-weight: 700;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.85);
 }
 
 .feedback {

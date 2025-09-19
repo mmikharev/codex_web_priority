@@ -12,7 +12,7 @@ interface BacklogListProps {
   onDropTask: (taskId: string) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   collapsed: boolean;
-  onToggleCollapse: () => void;
+  onToggleCollapse?: () => void;
   pomodoroControls?: {
     activeTaskId: string | null;
     mode: 'focus' | 'short_break' | 'long_break' | 'idle';
@@ -24,6 +24,12 @@ interface BacklogListProps {
     onResume: () => void;
     onReset: () => void;
   };
+  title?: string;
+  subtitle?: string;
+  collapsible?: boolean;
+  showCompletionToggle?: boolean;
+  emptyMessage?: string;
+  showQuadrantBadge?: boolean;
 }
 
 export function BacklogList({
@@ -34,8 +40,14 @@ export function BacklogList({
   onDropTask,
   onUpdateTask,
   collapsed,
-  onToggleCollapse,
+  onToggleCollapse = () => undefined,
   pomodoroControls,
+  title,
+  subtitle,
+  collapsible = true,
+  showCompletionToggle = true,
+  emptyMessage,
+  showQuadrantBadge = false,
 }: BacklogListProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const displayedCount = totalCount ?? tasks.length;
@@ -66,27 +78,32 @@ export function BacklogList({
     <section className={`${styles.container} ${collapsed ? styles.collapsed : ''}`.trim()}>
       <div className={styles.header}>
         <div className={styles.headerTitle}>
-          <h2 className={styles.title}>Бэклог</h2>
+          <h2 className={styles.title}>{title ?? 'Бэклог'}</h2>
           <span className={styles.count}>{displayedCount}</span>
+          {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
         </div>
         <div className={styles.headerActions}>
-          <button
-            type="button"
-            className={styles.toggleButton}
-            onClick={onToggleCollapse}
-            aria-expanded={!collapsed}
-            aria-controls={listId}
-          >
-            {collapsed ? 'Развернуть' : 'Свернуть'}
-          </button>
-          <label className={styles.checkboxLabel}>
-            <input
-              type="checkbox"
-              checked={hideCompleted}
-              onChange={(event) => onHideCompletedChange(event.target.checked)}
-            />
-            Скрыть выполненные
-          </label>
+          {collapsible ? (
+            <button
+              type="button"
+              className={styles.toggleButton}
+              onClick={onToggleCollapse}
+              aria-expanded={!collapsed}
+              aria-controls={listId}
+            >
+              {collapsed ? 'Развернуть' : 'Свернуть'}
+            </button>
+          ) : null}
+          {showCompletionToggle ? (
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={hideCompleted}
+                onChange={(event) => onHideCompletedChange(event.target.checked)}
+              />
+              Скрыть выполненные
+            </label>
+          ) : null}
         </div>
       </div>
       {!collapsed && (
@@ -99,7 +116,9 @@ export function BacklogList({
         >
           {tasks.length === 0 ? (
             <div className={styles.empty}>
-              {hideCompleted
+              {emptyMessage
+                ? emptyMessage
+                : hideCompleted
                 ? 'Нет задач для отображения. Попробуйте отключить фильтр «Скрыть выполненные».'
                 : 'Все задачи распределены по квадрантам'}
             </div>
@@ -124,6 +143,7 @@ export function BacklogList({
                       }
                     : undefined
                 }
+                showQuadrantBadge={showQuadrantBadge}
               />
             ))
           )}

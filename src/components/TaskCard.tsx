@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Task } from '../types';
+import { Quadrant, Task } from '../types';
 import { formatDate, fromDateTimeLocalInput, toDateTimeLocalInputValue } from '../utils/date';
 import { setTaskDragData } from '../utils/dnd';
 import styles from './TaskCard.module.css';
@@ -24,7 +24,15 @@ interface TaskCardProps {
   onUpdate?: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onReset?: (taskId: string) => void;
   pomodoro?: PomodoroControls;
+  showQuadrantBadge?: boolean;
 }
+
+const QUADRANT_LABELS: Record<Exclude<Quadrant, 'backlog'>, string> = {
+  Q1: 'Q1',
+  Q2: 'Q2',
+  Q3: 'Q3',
+  Q4: 'Q4',
+};
 
 function formatTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -32,7 +40,7 @@ function formatTime(totalSeconds: number) {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function TaskCard({ task, onUpdate, onReset, pomodoro }: TaskCardProps) {
+export function TaskCard({ task, onUpdate, onReset, pomodoro, showQuadrantBadge = false }: TaskCardProps) {
   const [editingField, setEditingField] = useState<'title' | 'due' | null>(null);
   const [draftTitle, setDraftTitle] = useState(task.title);
   const [draftDue, setDraftDue] = useState(() => toDateTimeLocalInputValue(task.due));
@@ -207,6 +215,9 @@ export function TaskCard({ task, onUpdate, onReset, pomodoro }: TaskCardProps) {
 
   const pomodoroCount = pomodoro?.completedCount ?? 0;
 
+  const quadrantBadge =
+    showQuadrantBadge && task.quadrant !== 'backlog' ? QUADRANT_LABELS[task.quadrant as Exclude<Quadrant, 'backlog'>] : null;
+
   return (
     <div
       className={`${styles.card} ${done ? styles.cardDone : ''}`.trim()}
@@ -246,6 +257,7 @@ export function TaskCard({ task, onUpdate, onReset, pomodoro }: TaskCardProps) {
             </button>
           )}
         </div>
+        {quadrantBadge ? <span className={`${styles.quadrantBadge} ${styles[`quadrant${quadrantBadge}`] ?? ''}`.trim()}>{quadrantBadge}</span> : null}
         {onReset ? (
           <button type="button" className={styles.backlogButton} onClick={(event) => onReset(task.id)} onMouseDown={handleBacklogMouseDown}>
             В бэклог
@@ -284,25 +296,57 @@ export function TaskCard({ task, onUpdate, onReset, pomodoro }: TaskCardProps) {
           </div>
           <div className={styles.pomodoroActions}>
             {isActive ? (
-              pomodoro.runState === 'running' ? (
-                <button type="button" onClick={pomodoro.onPause} className={styles.pomodoroButton}>
-                  Пауза
+              <>
+                {pomodoro.runState === 'running' ? (
+                  <button
+                    type="button"
+                    onClick={pomodoro.onPause}
+                    className={styles.pomodoroIconButton}
+                    aria-label="Пауза таймера"
+                  >
+                    <span className={styles.visuallyHidden}>Пауза таймера</span>
+                    <svg viewBox="0 0 24 24" className={styles.pomodoroIconSvg} aria-hidden>
+                      <path d="M9 4a1 1 0 0 1 1 1v14a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Zm6 0a1 1 0 0 1 1 1v14a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Z" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={pomodoro.onResume}
+                    className={styles.pomodoroIconButton}
+                    aria-label="Возобновить таймер"
+                  >
+                    <span className={styles.visuallyHidden}>Возобновить таймер</span>
+                    <svg viewBox="0 0 24 24" className={styles.pomodoroIconSvg} aria-hidden>
+                      <path d="M8.25 4.64a1 1 0 0 1 1.49-.86l9 5.36a1 1 0 0 1 0 1.72l-9 5.36A1 1 0 0 1 8 15.36V4.64Z" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={pomodoro.onReset}
+                  className={styles.pomodoroIconButtonSecondary}
+                  aria-label="Остановить таймер"
+                >
+                  <span className={styles.visuallyHidden}>Остановить таймер</span>
+                  <svg viewBox="0 0 24 24" className={styles.pomodoroIconSvg} aria-hidden>
+                    <path d="M7 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2Z" />
+                  </svg>
                 </button>
-              ) : (
-                <button type="button" onClick={pomodoro.onResume} className={styles.pomodoroButton}>
-                  Продолжить
-                </button>
-              )
+              </>
             ) : (
-              <button type="button" onClick={() => pomodoro.onStart(task.id)} className={styles.pomodoroButton}>
-                Старт
+              <button
+                type="button"
+                onClick={() => pomodoro.onStart(task.id)}
+                className={styles.pomodoroIconButton}
+                aria-label="Запустить таймер для задачи"
+              >
+                <span className={styles.visuallyHidden}>Запустить таймер для задачи</span>
+                <svg viewBox="0 0 24 24" className={styles.pomodoroIconSvg} aria-hidden>
+                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm-.75 2.5a.75.75 0 0 1 1.5 0V12l3.5 2.1a.75.75 0 1 1-.75 1.3l-4-2.4a.75.75 0 0 1-.37-.64Z" />
+                </svg>
               </button>
             )}
-            {isActive ? (
-              <button type="button" onClick={pomodoro.onReset} className={styles.pomodoroButtonSecondary}>
-                Стоп
-              </button>
-            ) : null}
           </div>
         </div>
       ) : null}
