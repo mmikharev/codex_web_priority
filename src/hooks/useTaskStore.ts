@@ -101,54 +101,61 @@ export function useTaskStore() {
         throw new Error('Ожидается объект вида { "task": "date" } или экспортированный JSON.');
       }
 
+      const createBase = () => {
+        const base: TaskMap = {};
+        if (resetQuadrants) {
+          Object.entries(tasks).forEach(([id, task]) => {
+            base[id] = {
+              ...task,
+              quadrant: 'backlog',
+              done: task.done ?? false,
+            };
+          });
+        } else {
+          Object.entries(tasks).forEach(([id, task]) => {
+            base[id] = { ...task, done: task.done ?? false };
+          });
+        }
+        return base;
+      };
+
       let added = 0;
       let updated = 0;
+      let nextTasks: TaskMap | null = null;
 
       if (isExportPayload(payload)) {
+        const base = createBase();
         const entries = Object.entries(payload.tasks);
 
-        setTasks((prev) => {
-          const base: TaskMap = {};
+        for (const [id, descriptor] of entries) {
+          if (!descriptor || typeof descriptor !== 'object') {
+            continue;
+          }
 
-          if (resetQuadrants) {
-            Object.entries(prev).forEach(([id, task]) => {
-              base[id] = { ...task, quadrant: 'backlog', done: task.done ?? false };
-            });
+          const normalizedTitle =
+            typeof descriptor.title === 'string' && descriptor.title.trim().length > 0
+              ? descriptor.title.trim()
+              : id;
+          const normalizedDue = normalizeDue(descriptor.due ?? null);
+          const normalizedQuadrant = isQuadrant(descriptor.quadrant) ? descriptor.quadrant : 'backlog';
+          const normalizedDone = typeof descriptor.done === 'boolean' ? descriptor.done : false;
+
+          if (base[id]) {
+            updated += 1;
           } else {
-            Object.assign(base, prev);
+            added += 1;
           }
 
-          for (const [id, descriptor] of entries) {
-            if (!descriptor || typeof descriptor !== 'object') {
-              continue;
-            }
+          base[id] = {
+            id,
+            title: normalizedTitle,
+            due: normalizedDue,
+            quadrant: normalizedQuadrant,
+            done: normalizedDone,
+          };
+        }
 
-            const normalizedTitle =
-              typeof descriptor.title === 'string' && descriptor.title.trim().length > 0
-                ? descriptor.title.trim()
-                : id;
-            const normalizedDue = normalizeDue(descriptor.due ?? null);
-            const normalizedQuadrant = isQuadrant(descriptor.quadrant) ? descriptor.quadrant : 'backlog';
-            const normalizedDone = typeof descriptor.done === 'boolean' ? descriptor.done : false;
-
-            const existing = base[id];
-            if (existing) {
-              updated += 1;
-            } else {
-              added += 1;
-            }
-
-            base[id] = {
-              id,
-              title: normalizedTitle,
-              due: normalizedDue,
-              quadrant: normalizedQuadrant,
-              done: normalizedDone,
-            };
-          }
-
-          return base;
-        });
+        nextTasks = base;
       } else {
         const entries = Object.entries(payload);
         const quadrantEntries = entries.filter((entry): entry is [Quadrant, Record<string, string>] => {
@@ -160,68 +167,17 @@ export function useTaskStore() {
         });
 
         if (quadrantEntries.length > 0 && quadrantEntries.length === entries.length) {
-          setTasks((prev) => {
-            const base: TaskMap = {};
+          const base = createBase();
 
-            if (resetQuadrants) {
-              Object.entries(prev).forEach(([id, task]) => {
-                base[id] = { ...task, quadrant: 'backlog', done: task.done ?? false };
-              });
-            } else {
-              Object.assign(base, prev);
-            }
-
-            for (const [quadrantKey, tasksMap] of quadrantEntries) {
-              Object.entries(tasksMap).forEach(([id, dueValue]) => {
-                const due = normalizeDue(dueValue);
-                const existing = base[id];
-                if (existing) {
-                  base[id] = {
-                    ...existing,
-                    title: id,
-                    due,
-                    quadrant: quadrantKey,
-                  };
-                  updated += 1;
-                } else {
-                  base[id] = {
-                    id,
-                    title: id,
-                    due,
-                    quadrant: quadrantKey,
-                    done: false,
-                  };
-                  added += 1;
-                }
-              });
-            }
-
-            return base;
-          });
-        } else {
-          if (entries.some(([, value]) => typeof value !== 'string')) {
-            throw new Error('Каждое значение должно быть строкой (может быть пустой).');
-          }
-
-          setTasks((prev) => {
-            const base: TaskMap = {};
-
-            if (resetQuadrants) {
-              Object.entries(prev).forEach(([id, task]) => {
-                base[id] = { ...task, quadrant: 'backlog', done: task.done ?? false };
-              });
-            } else {
-              Object.assign(base, prev);
-            }
-
-            for (const [id, dueValue] of entries) {
-              const due = normalizeDue(dueValue as string);
-              const existing = base[id];
-              if (existing) {
+          for (const [quadrantKey, tasksMap] of quadrantEntries) {
+            Object.entries(tasksMap).forEach(([id, dueValue]) => {
+              const due = normalizeDue(dueValue);
+              if (base[id]) {
                 base[id] = {
-                  ...existing,
+                  ...base[id],
                   title: id,
                   due,
+                  quadrant: quadrantKey,
                 };
                 updated += 1;
               } else {
@@ -229,23 +185,55 @@ export function useTaskStore() {
                   id,
                   title: id,
                   due,
-                  quadrant: 'backlog',
+                  quadrant: quadrantKey,
                   done: false,
                 };
                 added += 1;
               }
-            }
+            });
+          }
 
-            return base;
-          });
+          nextTasks = base;
+        } else {
+          if (entries.some(([, value]) => typeof value !== 'string')) {
+            throw new Error('Каждое значение должно быть строкой (может быть пустой).');
+          }
+
+          const base = createBase();
+
+          for (const [id, dueValue] of entries) {
+            const due = normalizeDue(dueValue as string);
+            if (base[id]) {
+              base[id] = {
+                ...base[id],
+                title: id,
+                due,
+              };
+              updated += 1;
+            } else {
+              base[id] = {
+                id,
+                title: id,
+                due,
+                quadrant: 'backlog',
+                done: false,
+              };
+              added += 1;
+            }
+          }
+
+          nextTasks = base;
         }
+      }
+
+      if (nextTasks) {
+        setTasks(nextTasks);
       }
 
       return { added, updated, total: added + updated };
     },
-    [],
+    [tasks],
   );
-
   const moveTask = useCallback((taskId: string, quadrant: Quadrant) => {
     setTasks((prev) => {
       const current = prev[taskId];

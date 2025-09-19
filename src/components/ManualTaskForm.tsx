@@ -144,7 +144,7 @@ export const ManualTaskForm = forwardRef<HTMLFormElement, ManualTaskFormProps>(
         <label className={styles.label}>
           Квадрант
           <select
-            className={`${styles.input} ${styles.select}`.trim()
+            className={`${styles.input} ${styles.select}`}
             value={quadrant}
             onChange={(event) => setQuadrant(event.target.value as Quadrant)}
           >

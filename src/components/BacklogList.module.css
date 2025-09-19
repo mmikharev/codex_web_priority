@@ -1,14 +1,20 @@
 .container {
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--backlog-bg);
   border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--backlog-border);
   padding: 18px;
-  box-shadow: 0 28px 56px -40px rgba(15, 23, 42, 0.45);
+  box-shadow: var(--backlog-shadow);
   display: flex;
   flex-direction: column;
   min-height: 320px;
   backdrop-filter: blur(28px) saturate(140%);
   -webkit-backdrop-filter: blur(28px) saturate(140%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.container:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--backlog-shadow-hover);
 }
 
 .collapsed {
@@ -41,11 +47,11 @@
   font-size: 18px;
   font-weight: 700;
   margin: 0;
-  color: rgba(15, 23, 42, 0.9);
+  color: var(--backlog-title);
 }
 
 .count {
-  color: rgba(14, 116, 144, 0.9);
+  color: var(--backlog-count);
   font-size: 13px;
   display: block;
   margin-top: 4px;
@@ -56,7 +62,7 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: rgba(15, 23, 42, 0.65);
+  color: var(--backlog-checkbox-text);
   user-select: none;
   cursor: pointer;
 }
@@ -70,8 +76,8 @@
   appearance: none;
   border: none;
   border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.08);
-  color: rgba(15, 23, 42, 0.75);
+  background: var(--backlog-toggle-bg);
+  color: var(--backlog-toggle-text);
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
@@ -82,8 +88,8 @@
 
 .toggleButton:hover,
 .toggleButton:focus-visible {
-  background: rgba(59, 130, 246, 0.16);
-  color: rgba(37, 99, 235, 0.9);
+  background: var(--backlog-toggle-bg-hover);
+  color: var(--backlog-toggle-text-hover);
   outline: none;
 }
 
@@ -92,19 +98,29 @@
   min-height: 220px;
   padding: 6px;
   border-radius: 16px;
-  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border: 1px dashed var(--backlog-drop-border);
   transition: border-color 0.2s ease, background 0.2s ease;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--backlog-drop-bg);
   overflow: auto;
 }
 
 .dragOver {
-  border-color: rgba(59, 130, 246, 0.65);
-  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--backlog-drop-border-active);
+  background: var(--backlog-drop-bg-active);
+  animation: pulse 0.6s ease infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.15);
+  }
+  to {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.05);
+  }
 }
 
 .empty {
-  color: rgba(15, 23, 42, 0.6);
+  color: var(--backlog-empty);
   font-size: 13px;
   text-align: center;
   margin-top: 24px;
