@@ -1,4 +1,5 @@
 import { Quadrant, Task } from '../types';
+import { formatDate } from './date';
 
 const QUADRANT_TITLES: Record<Quadrant, string> = {
   backlog: 'Бэклог',
@@ -10,7 +11,7 @@ const QUADRANT_TITLES: Record<Quadrant, string> = {
 
 function formatTask(task: Task) {
   const status = task.done ? 'x' : ' ';
-  const due = task.due ? ` _(до ${new Date(task.due).toLocaleString()})_` : '';
+  const due = task.due ? ` _(до ${formatDate(task.due)})_` : '';
   return `- [${status}] ${task.title}${due}`;
 }
 

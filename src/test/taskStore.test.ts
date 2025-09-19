@@ -124,4 +124,58 @@ describe('useTaskStore importTasks', () => {
 
     expect(second.result.current.tasks).toEqual(first.result.current.tasks);
   });
+
+  it('sanitizes trailing commas without altering string contents', () => {
+    const { result } = renderHook(() => useTaskStore());
+
+    const json = `{
+      "tasks": {
+        "hello": {
+          "title": "Hello, ] world",
+          "quadrant": "Q1",
+          "due": "2024-01-01T00:00:00.000Z",
+        },
+      },
+    }`;
+
+    act(() => {
+      const summary = result.current.importTasks(json);
+      expect(summary).toMatchObject({ added: 1, updated: 0, total: 1 });
+    });
+
+    expect(result.current.tasks.hello.title).toBe('Hello, ] world');
+    expect(result.current.tasks.hello.quadrant).toBe('Q1');
+  });
+
+  it('keeps existing metadata when fields are missing in import payload', () => {
+    const { result } = renderHook(() => useTaskStore());
+
+    act(() => {
+      result.current.importTasks(JSON.stringify({ foo: '2024-01-01T00:00:00.000Z' }));
+      result.current.updateTask('foo', { title: 'Custom title', done: true });
+      result.current.moveTask('foo', 'Q3');
+      result.current.addTimeToTask('foo', 300);
+    });
+
+    const payload = {
+      tasks: {
+        foo: {
+          due: '2024-02-02T00:00:00.000Z',
+        },
+      },
+    };
+
+    act(() => {
+      const summary = result.current.importTasks(JSON.stringify(payload));
+      expect(summary).toMatchObject({ added: 0, updated: 1, total: 1 });
+    });
+
+    expect(result.current.tasks.foo).toMatchObject({
+      title: 'Custom title',
+      quadrant: 'Q3',
+      done: true,
+      timeSpentSeconds: 300,
+      due: '2024-02-02T00:00:00.000Z',
+    });
+  });
 });

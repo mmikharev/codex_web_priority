@@ -13,10 +13,35 @@ export interface ImportSummary {
   total: number;
 }
 
-const TRAILING_COMMA_REGEX = /,\s*(?=[}\]])/g;
-
 function sanitizeJson(raw: string): string {
-  return raw.replace(TRAILING_COMMA_REGEX, '');
+  let result = '';
+  let inString = false;
+  let escapeNext = false;
+
+  for (let index = 0; index < raw.length; index += 1) {
+    const char = raw[index]!;
+
+    if (!inString && char === ',') {
+      let lookahead = index + 1;
+      while (lookahead < raw.length && /\s/.test(raw[lookahead]!)) {
+        lookahead += 1;
+      }
+      const next = raw[lookahead];
+      if (next === '}' || next === ']') {
+        escapeNext = false;
+        continue;
+      }
+    }
+
+    result += char;
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+    }
+    escapeNext = !escapeNext && char === '\\';
+  }
+
+  return result;
 }
 
 function normalizeDue(value: string | null | undefined): string | null {
@@ -185,27 +210,31 @@ export function useTaskStore() {
             continue;
           }
 
+          const current = base[id];
           const normalizedTitle =
             typeof descriptor.title === 'string' && descriptor.title.trim().length > 0
               ? descriptor.title.trim()
-              : id;
+              : current?.title ?? id;
           const normalizedDue = normalizeDue(descriptor.due ?? null);
-          const normalizedQuadrant = isQuadrant(descriptor.quadrant) ? descriptor.quadrant : 'backlog';
-          const normalizedDone = typeof descriptor.done === 'boolean' ? descriptor.done : false;
+          const normalizedQuadrant = isQuadrant(descriptor.quadrant)
+            ? descriptor.quadrant
+            : current?.quadrant ?? 'backlog';
+          const normalizedDone =
+            typeof descriptor.done === 'boolean' ? descriptor.done : current?.done ?? false;
           const normalizedCreatedAt =
             typeof descriptor.createdAt === 'string' && descriptor.createdAt.trim().length > 0
               ? descriptor.createdAt
-              : base[id]?.createdAt;
+              : current?.createdAt;
           const normalizedCompletedAt =
             typeof descriptor.completedAt === 'string' && descriptor.completedAt.trim().length > 0
               ? descriptor.completedAt
               : normalizedDone
-              ? base[id]?.completedAt ?? null
+              ? current?.completedAt ?? null
               : null;
           const normalizedTimeSpent =
             typeof descriptor.timeSpentSeconds === 'number' && Number.isFinite(descriptor.timeSpentSeconds)
               ? Math.max(0, descriptor.timeSpentSeconds)
-              : base[id]?.timeSpentSeconds;
+              : current?.timeSpentSeconds;
 
           if (base[id]) {
             updated += 1;
@@ -219,7 +248,7 @@ export function useTaskStore() {
             due: normalizedDue,
             quadrant: normalizedQuadrant,
             done: normalizedDone,
-            createdAt: normalizedCreatedAt ?? base[id]?.createdAt,
+            createdAt: normalizedCreatedAt ?? current?.createdAt,
             completedAt: normalizedDone ? normalizedCompletedAt : null,
             timeSpentSeconds: normalizedTimeSpent,
           });
@@ -243,15 +272,16 @@ export function useTaskStore() {
             Object.entries(tasksMap).forEach(([id, dueValue]) => {
               const due = normalizeDue(dueValue);
               if (base[id]) {
+                const current = base[id];
                 base[id] = finalizeTask({
                   id,
-                  title: id,
+                  title: current.title,
                   due,
                   quadrant: quadrantKey,
-                  done: base[id].done ?? false,
-                  createdAt: base[id].createdAt,
-                  completedAt: base[id].completedAt,
-                  timeSpentSeconds: base[id].timeSpentSeconds,
+                  done: current.done ?? false,
+                  createdAt: current.createdAt,
+                  completedAt: current.completedAt,
+                  timeSpentSeconds: current.timeSpentSeconds,
                 });
                 updated += 1;
               } else {
@@ -278,15 +308,16 @@ export function useTaskStore() {
           for (const [id, dueValue] of entries) {
             const due = normalizeDue(dueValue as string);
             if (base[id]) {
+              const current = base[id];
               base[id] = finalizeTask({
                 id,
-                title: id,
+                title: current.title,
                 due,
-                quadrant: base[id].quadrant,
-                done: base[id].done ?? false,
-                createdAt: base[id].createdAt,
-                completedAt: base[id].completedAt,
-                timeSpentSeconds: base[id].timeSpentSeconds,
+                quadrant: current.quadrant,
+                done: current.done ?? false,
+                createdAt: current.createdAt,
+                completedAt: current.completedAt,
+                timeSpentSeconds: current.timeSpentSeconds,
               });
               updated += 1;
             } else {
