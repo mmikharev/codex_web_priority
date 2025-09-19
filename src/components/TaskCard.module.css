@@ -1,10 +1,10 @@
 .card {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: var(--task-card-bg);
+  border: 1px solid var(--task-card-border);
   border-radius: 18px;
   padding: 14px 16px;
   margin-bottom: 12px;
-  box-shadow: 0 18px 32px -24px rgba(15, 23, 42, 0.55);
+  box-shadow: var(--task-card-shadow);
   cursor: grab;
   transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
   outline: none;
@@ -69,7 +69,7 @@
   padding: 0;
   font-size: 15px;
   font-weight: 600;
-  color: rgba(15, 23, 42, 0.92);
+  color: var(--task-card-title);
   text-align: left;
   cursor: text;
   word-break: break-word;
@@ -80,14 +80,14 @@
 }
 
 .titleDone {
-  color: rgba(15, 23, 42, 0.55);
+  color: var(--task-card-title-done);
   text-decoration: line-through;
 }
 
 .backlogButton {
-  background: rgba(37, 99, 235, 0.1);
+  background: var(--task-card-backlog-bg);
   border: none;
-  color: rgba(37, 99, 235, 0.95);
+  color: var(--task-card-backlog-text);
   font-size: 13px;
   padding: 6px 10px;
   border-radius: 999px;
@@ -97,8 +97,8 @@
 }
 
 .backlogButton:hover {
-  background: rgba(37, 99, 235, 0.2);
-  color: rgba(37, 99, 235, 1);
+  background: var(--task-card-backlog-bg-hover);
+  color: var(--task-card-backlog-text-hover);
 }
 
 .dueRow {
@@ -106,9 +106,9 @@
 }
 
 .dueButton {
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  color: rgba(15, 23, 42, 0.65);
+  background: var(--task-card-due-bg);
+  border: 1px solid var(--task-card-due-border);
+  color: var(--task-card-due-text);
   font-size: 13px;
   padding: 6px 10px;
   border-radius: 999px;
@@ -130,11 +130,11 @@
 
 .input {
   padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--task-card-input-border);
   border-radius: 10px;
   font-size: 13px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #0f172a;
+  background: var(--task-card-input-bg);
+  color: var(--task-card-input-text);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -155,4 +155,94 @@
 
 .cardDone .dueButton {
   color: rgba(148, 163, 184, 0.85);
+}
+
+.pomodoro {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pomodoroActive {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 24px -18px rgba(15, 23, 42, 0.35);
+}
+
+.pomodoroInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pomodoroLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: white;
+}
+
+.pomodoroCount {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.pomodoroTime {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.pomodoroActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pomodoroButton,
+.pomodoroButtonSecondary {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pomodoroButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.pomodoroButtonSecondary {
+  background: rgba(15, 23, 42, 0.18);
+  color: white;
+}
+
+.pomodoroButton:hover,
+.pomodoroButtonSecondary:hover {
+  transform: translateY(-1px);
+}
+
+.pomodoroFocus {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.85), rgba(22, 163, 74, 0.8));
+}
+
+.pomodoroShort {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.85), rgba(37, 99, 235, 0.8));
+}
+
+.pomodoroLong {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.85), rgba(124, 58, 237, 0.8));
+}
+
+.pomodoroIdle {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.65), rgba(100, 116, 139, 0.6));
 }

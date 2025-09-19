@@ -7,25 +7,39 @@
   margin: 0 auto;
 }
 
-.topRow {
-  display: flex;
-  flex-direction: column;
+.hero {
+  display: grid;
   gap: 20px;
 }
 
-@media (min-width: 960px) {
-  .topRow {
-    display: grid;
-    grid-template-columns: 1.1fr 1fr;
-    align-items: start;
-    gap: 28px;
-  }
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
-.sideColumn {
+.actionRow > * {
+  flex-shrink: 0;
+}
+
+.topControls {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
+}
+
+.layoutGrid {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 1080px) {
+  .layoutGrid {
+    grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+    align-items: start;
+  }
 }
 
 .boardRow {
@@ -50,4 +64,24 @@
   font-size: 12px;
   color: rgba(15, 23, 42, 0.55);
   margin: 0;
+}
+
+.focusOverlay {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 24px;
+  border-radius: 28px;
+  background: var(--focus-overlay-bg);
+  box-shadow: var(--focus-overlay-shadow);
+}
+
+.focusOverlayTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--focus-overlay-text);
 }

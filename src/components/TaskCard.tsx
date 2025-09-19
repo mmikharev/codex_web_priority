@@ -4,13 +4,35 @@ import { formatDate, fromDateTimeLocalInput, toDateTimeLocalInputValue } from '.
 import { setTaskDragData } from '../utils/dnd';
 import styles from './TaskCard.module.css';
 
+type PomodoroMode = 'focus' | 'short_break' | 'long_break' | 'idle';
+type RunState = 'running' | 'paused' | 'stopped';
+
+interface PomodoroControls {
+  activeTaskId: string | null;
+  mode: PomodoroMode;
+  runState: RunState;
+  remainingSeconds: number;
+  completedCount: number;
+  onStart: (taskId: string) => void;
+  onPause: () => void;
+  onResume: () => void;
+  onReset: () => void;
+}
+
 interface TaskCardProps {
   task: Task;
   onUpdate?: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onReset?: (taskId: string) => void;
+  pomodoro?: PomodoroControls;
 }
 
-export function TaskCard({ task, onUpdate, onReset }: TaskCardProps) {
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+export function TaskCard({ task, onUpdate, onReset, pomodoro }: TaskCardProps) {
   const [editingField, setEditingField] = useState<'title' | 'due' | null>(null);
   const [draftTitle, setDraftTitle] = useState(task.title);
   const [draftDue, setDraftDue] = useState(() => toDateTimeLocalInputValue(task.due));
@@ -172,6 +194,19 @@ export function TaskCard({ task, onUpdate, onReset }: TaskCardProps) {
     event.stopPropagation();
   };
 
+  const isActive = pomodoro?.activeTaskId === task.id;
+  const pomodoroMode = isActive ? pomodoro?.mode ?? 'idle' : 'idle';
+  const pomodoroClass =
+    pomodoroMode === 'focus'
+      ? styles.pomodoroFocus
+      : pomodoroMode === 'short_break'
+      ? styles.pomodoroShort
+      : pomodoroMode === 'long_break'
+      ? styles.pomodoroLong
+      : styles.pomodoroIdle;
+
+  const pomodoroCount = pomodoro?.completedCount ?? 0;
+
   return (
     <div
       className={`${styles.card} ${done ? styles.cardDone : ''}`.trim()}
@@ -211,39 +246,66 @@ export function TaskCard({ task, onUpdate, onReset }: TaskCardProps) {
             </button>
           )}
         </div>
-        {onReset && task.quadrant !== 'backlog' ? (
-          <button
-            type="button"
-            className={styles.backlogButton}
-            onMouseDown={handleBacklogMouseDown}
-            onClick={() => onReset(task.id)}
-          >
-            ↩︎ В бэклог
+        {onReset ? (
+          <button type="button" className={styles.backlogButton} onClick={(event) => onReset(task.id)} onMouseDown={handleBacklogMouseDown}>
+            В бэклог
           </button>
         ) : null}
       </div>
+
       <div className={styles.dueRow}>
         {editingField === 'due' ? (
           <div className={styles.fieldGroup}>
             <input
               ref={dueInputRef}
-              className={`${styles.input} ${dueError ? styles.inputError : ''}`.trim()}
               type="datetime-local"
+              className={`${styles.input} ${dueError ? styles.inputError : ''}`.trim()}
               value={draftDue}
               onChange={(event) => setDraftDue(event.target.value)}
               onBlur={handleDueBlur}
               onKeyDown={handleDueKeyDown}
               step={60}
-              data-task-editor="due"
             />
             {dueError ? <div className={styles.error}>{dueError}</div> : null}
           </div>
         ) : (
           <button type="button" className={styles.dueButton} onClick={startDueEditing}>
-            {task.due ? formatDate(task.due) : 'Без даты'}
+            {task.due ? formatDate(task.due) : 'Без срока'}
           </button>
         )}
       </div>
+
+      {pomodoro ? (
+        <div className={`${styles.pomodoro} ${pomodoroClass} ${isActive ? styles.pomodoroActive : ''}`.trim()}>
+          <div className={styles.pomodoroInfo}>
+            <span className={styles.pomodoroLabel}>Pomodoro</span>
+            <span className={styles.pomodoroCount}>{pomodoroCount}</span>
+            {isActive ? <span className={styles.pomodoroTime}>{formatTime(pomodoro.remainingSeconds)}</span> : null}
+          </div>
+          <div className={styles.pomodoroActions}>
+            {isActive ? (
+              pomodoro.runState === 'running' ? (
+                <button type="button" onClick={pomodoro.onPause} className={styles.pomodoroButton}>
+                  Пауза
+                </button>
+              ) : (
+                <button type="button" onClick={pomodoro.onResume} className={styles.pomodoroButton}>
+                  Продолжить
+                </button>
+              )
+            ) : (
+              <button type="button" onClick={() => pomodoro.onStart(task.id)} className={styles.pomodoroButton}>
+                Старт
+              </button>
+            )}
+            {isActive ? (
+              <button type="button" onClick={pomodoro.onReset} className={styles.pomodoroButtonSecondary}>
+                Стоп
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -13,16 +13,22 @@
 }
 
 .zone {
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--quadrant-bg);
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--quadrant-border);
   padding: 18px;
-  box-shadow: 0 30px 60px -45px rgba(15, 23, 42, 0.5);
+  box-shadow: var(--quadrant-shadow);
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(30px) saturate(140%);
   -webkit-backdrop-filter: blur(30px) saturate(140%);
   position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.zone:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--quadrant-shadow-hover);
 }
 
 .zoneCollapsed {
@@ -30,15 +36,20 @@
 }
 
 .zoneHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   margin-bottom: 12px;
 }
 
+@media (min-width: 720px) {
+  .zoneHeader {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+  }
+}
+
 .zoneHeaderContent {
-  flex: 1;
   min-width: 0;
 }
 
@@ -46,21 +57,33 @@
   margin: 0;
   font-size: 17px;
   font-weight: 700;
-  color: rgba(15, 23, 42, 0.9);
+  color: var(--quadrant-title);
 }
 
 .zoneSubtitle {
   margin: 4px 0 0;
   font-size: 13px;
-  color: rgba(15, 23, 42, 0.55);
+  color: var(--quadrant-subtitle);
+}
+
+.zoneStats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--quadrant-stats);
+}
+
+.zoneStatsItem strong {
+  color: var(--quadrant-stats-strong);
 }
 
 .toggleButton {
   appearance: none;
   border: none;
   border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.08);
-  color: rgba(15, 23, 42, 0.75);
+  background: var(--quadrant-toggle-bg);
+  color: var(--quadrant-toggle-text);
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
@@ -71,29 +94,39 @@
 
 .toggleButton:hover,
 .toggleButton:focus-visible {
-  background: rgba(59, 130, 246, 0.16);
-  color: rgba(37, 99, 235, 0.9);
+  background: var(--quadrant-toggle-bg-hover);
+  color: var(--quadrant-toggle-text-hover);
   outline: none;
 }
 
 .dropArea {
   flex: 1;
   border-radius: 18px;
-  border: 1px dashed rgba(255, 255, 255, 0.24);
+  border: 1px dashed var(--quadrant-drop-border);
   padding: 8px;
   transition: border-color 0.2s ease, background 0.2s ease;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--quadrant-drop-bg);
   overflow: auto;
   max-height: var(--quadrant-max-height, none);
 }
 
 .dragOver {
-  border-color: rgba(56, 189, 248, 0.8);
-  background: rgba(56, 189, 248, 0.18);
+  border-color: var(--quadrant-drop-border-active);
+  background: var(--quadrant-drop-bg-active);
+  animation: pulse 0.6s ease infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.15);
+  }
+  to {
+    box-shadow: 0 0 0 8px rgba(56, 189, 248, 0.05);
+  }
 }
 
 .emptyState {
-  color: rgba(15, 23, 42, 0.6);
+  color: var(--quadrant-empty);
   font-size: 13px;
   text-align: center;
   margin-top: 24px;

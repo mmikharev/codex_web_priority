@@ -5,13 +5,25 @@ interface ImportPanelProps {
   value: string;
   onChange: (value: string) => void;
   onImport: (jsonText: string, options: { resetQuadrants: boolean }) => Promise<void> | void;
-  onExport: () => void;
+  onExportJson: () => void;
+  onExportMarkdown: () => void;
+  onExportPdf: () => void;
   feedback?: string | null;
   error?: string | null;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
-export function ImportPanel({ value, onChange, onImport, onExport, feedback, error, textareaRef }: ImportPanelProps) {
+export function ImportPanel({
+  value,
+  onChange,
+  onImport,
+  onExportJson,
+  onExportMarkdown,
+  onExportPdf,
+  feedback,
+  error,
+  textareaRef,
+}: ImportPanelProps) {
   const [resetQuadrants, setResetQuadrants] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -26,10 +38,6 @@ export function ImportPanel({ value, onChange, onImport, onExport, feedback, err
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleExport = () => {
-    onExport();
   };
 
   return (
@@ -57,15 +65,16 @@ export function ImportPanel({ value, onChange, onImport, onExport, feedback, err
           </label>
         </div>
         <div className={styles.buttons}>
-          <button className={styles.secondaryButton} type="button" onClick={handleExport}>
+          <button className={styles.secondaryButton} type="button" onClick={onExportJson}>
             Экспорт JSON
           </button>
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onClick={handleImport}
-            disabled={isProcessing}
-          >
+          <button className={styles.secondaryButton} type="button" onClick={onExportMarkdown}>
+            Markdown
+          </button>
+          <button className={styles.secondaryButton} type="button" onClick={onExportPdf}>
+            PDF
+          </button>
+          <button className={styles.primaryButton} type="button" onClick={handleImport} disabled={isProcessing}>
             {isProcessing ? 'Импорт...' : 'Импорт'}
           </button>
         </div>

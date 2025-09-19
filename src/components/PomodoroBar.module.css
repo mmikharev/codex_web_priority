@@ -1,0 +1,222 @@
+.bar {
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: var(--pomodoro-bg);
+  color: var(--pomodoro-text);
+  box-shadow: var(--pomodoro-shadow);
+  border: 1px solid var(--pomodoro-border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .main {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.timerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modeBadge {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: white;
+}
+
+.modeFocus {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.modeShort {
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+}
+
+.modeLong {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+}
+
+.modeIdle {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+}
+
+.time {
+  font-size: clamp(32px, 6vw, 48px);
+  font-weight: 700;
+}
+
+.progressWrapper {
+  display: grid;
+  gap: 6px;
+}
+
+.progressTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--pomodoro-track-bg);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pomodoro-track-fill);
+  transition: width 0.4s ease;
+}
+
+.taskName {
+  font-size: 14px;
+  color: var(--pomodoro-task-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.controlButton {
+  border: none;
+  background: var(--pomodoro-button-bg);
+  color: var(--pomodoro-button-text);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: var(--pomodoro-button-shadow);
+}
+
+.controlButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.controlButton:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--pomodoro-button-shadow-hover);
+}
+
+.controlActive {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(59, 130, 246, 0.7));
+  color: white;
+}
+
+.settingsToggle {
+  border: none;
+  background: none;
+  color: var(--pomodoro-task-color);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+
+.settingsToggle:hover {
+  background: var(--pomodoro-button-bg);
+}
+
+.bottomRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.statBox {
+  flex: 1 1 100px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--pomodoro-stat-bg);
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.statLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--pomodoro-task-color);
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.settingsPanel {
+  border-top: 1px solid var(--pomodoro-border);
+  padding-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.settingsField {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--pomodoro-task-color);
+}
+
+.settingsField input {
+  border: 1px solid var(--pomodoro-border);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: var(--pomodoro-input-bg);
+  color: inherit;
+}
+
+.settingsToggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--pomodoro-task-color);
+}
+
+.clearStats {
+  border: none;
+  background: none;
+  color: var(--pomodoro-button-text);
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.clearStats:hover {
+  background: var(--pomodoro-button-bg);
+}

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Quadrant, Task } from '../types';
 import { getTaskIdFromDrag } from '../utils/dnd';
 import { TaskCard } from './TaskCard';
@@ -23,8 +23,19 @@ interface QuadrantBoardProps {
   onDropTask: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
-onRequestCreateTask?: (quadrant: QuadrantId) => void;
-onToggleCollapse: (quadrant: QuadrantId) => void;
+  onToggleCollapse: (quadrant: QuadrantId) => void;
+  onRequestCreateTask?: (quadrant: QuadrantId) => void;
+  pomodoroControls?: {
+    activeTaskId: string | null;
+    mode: 'focus' | 'short_break' | 'long_break' | 'idle';
+    runState: 'running' | 'paused' | 'stopped';
+    remainingSeconds: number;
+    stats: Record<string, number>;
+    onStart: (taskId: string) => void;
+    onPause: () => void;
+    onResume: () => void;
+    onReset: () => void;
+  };
 }
 
 function QuadrantZone({
@@ -36,8 +47,9 @@ function QuadrantZone({
   onDrop,
   onUpdateTask,
   onResetTask,
-onRequestCreateTask,
-onToggleCollapse,
+  onRequestCreateTask,
+  onToggleCollapse,
+  pomodoroControls,
 }: {
   quadrant: QuadrantId;
   title: string;
@@ -47,85 +59,17 @@ onToggleCollapse,
   onDrop: (taskId: string, quadrant: QuadrantId) => void;
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   onResetTask: (taskId: string) => void;
-onRequestCreateTask?: (quadrant: QuadrantId) => void;
-onToggleCollapse: (quadrant: QuadrantId) => void;
+  onRequestCreateTask?: (quadrant: QuadrantId) => void;
+  onToggleCollapse: (quadrant: QuadrantId) => void;
+  pomodoroControls?: QuadrantBoardProps['pomodoroControls'];
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
-// keep both: stable id + ref + observers
-const dropAreaId = `quadrant-${quadrant}`;
-const dropAreaRef = useRef<HTMLDivElement | null>(null);
-
-useLayoutEffect(() => {
-  if (collapsed) return; // no DOM, no observers
-  if (typeof window === 'undefined') return;
-
-  const dropArea = dropAreaRef.current;
-  if (!dropArea) return;
-
-  const hasResizeObserver = typeof window.ResizeObserver !== 'undefined';
-  const hasMutationObserver = typeof window.MutationObserver !== 'undefined';
-
-  const updateMaxHeight = () => {
-    if (!dropArea) return;
-
-    const cards = Array.from(dropArea.querySelectorAll<HTMLElement>('[data-task-id]'));
-    const limit = Math.min(cards.length, 3);
-
-    if (limit === 0) {
-      dropArea.style.removeProperty('--quadrant-max-height');
-      return;
-    }
-
-    let totalHeight = 0;
-    for (let index = 0; index < limit; index += 1) {
-      const card = cards[index];
-      totalHeight += card.getBoundingClientRect().height;
-      if (index < limit - 1) {
-        totalHeight += parseFloat(window.getComputedStyle(card).marginBottom || '0');
-      }
-    }
-
-    const areaStyles = window.getComputedStyle(dropArea);
-    const verticalChrome =
-      parseFloat(areaStyles.paddingTop || '0') +
-      parseFloat(areaStyles.paddingBottom || '0') +
-      parseFloat(areaStyles.borderTopWidth || '0') +
-      parseFloat(areaStyles.borderBottomWidth || '0');
-
-    dropArea.style.setProperty('--quadrant-max-height', `${Math.ceil(totalHeight + verticalChrome)}px`);
-  };
-
-  updateMaxHeight();
-  if (!hasResizeObserver) return;
-
-  const resizeObserver = new ResizeObserver(updateMaxHeight);
-
-  const observeElements = () => {
-    resizeObserver.disconnect();
-    resizeObserver.observe(dropArea);
-    const cards = Array.from(dropArea.querySelectorAll<HTMLElement>('[data-task-id]'));
-    cards.forEach((card) => resizeObserver.observe(card));
-  };
-
-  observeElements();
-
-  if (hasMutationObserver) {
-    const mutationObserver = new MutationObserver(() => {
-      observeElements();
-      updateMaxHeight();
-    });
-    mutationObserver.observe(dropArea, { childList: true, subtree: true });
-
-    return () => {
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-    };
-  }
-
-  return () => {
-    resizeObserver.disconnect();
-  };
-}, [tasks, collapsed]);
+  const stats = useMemo(() => {
+    const total = tasks.length;
+    const active = tasks.filter((task) => !(task.done ?? false)).length;
+    const completed = total - active;
+    return { total, active, completed };
+  }, [tasks]);
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -157,47 +101,74 @@ useLayoutEffect(() => {
           <h3 className={styles.zoneTitle}>{title}</h3>
           <p className={styles.zoneSubtitle}>{subtitle}</p>
         </div>
+        <div className={styles.zoneStats}>
+          <span className={styles.zoneStatsItem}>
+            Активных: <strong>{stats.active}</strong>
+          </span>
+          <span className={styles.zoneStatsItem}>
+            Выполнено: <strong>{stats.completed}</strong>
+          </span>
+        </div>
         <button
           type="button"
           className={styles.toggleButton}
           onClick={handleToggle}
           aria-expanded={!collapsed}
-          aria-controls={dropAreaId}
+          aria-controls={`quadrant-${quadrant}`}
         >
           {collapsed ? 'Развернуть' : 'Свернуть'}
         </button>
       </header>
-{!collapsed && (
-  <>
-    <div
-      id={dropAreaId}
-      ref={dropAreaRef}
-      className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {tasks.length === 0 ? (
-        <div className={styles.emptyState}>Перетащите задачу сюда</div>
-      ) : (
-        tasks.map((task) => (
-          <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} onReset={onResetTask} />
-        ))
-      )}
-    </div>
+      {!collapsed ? (
+        <>
+          <div
+            id={`quadrant-${quadrant}`}
+            className={`${styles.dropArea} ${isDragOver ? styles.dragOver : ''}`.trim()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {tasks.length === 0 ? (
+              <div className={styles.emptyState}>Перетащите задачу сюда</div>
+            ) : (
+              tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onUpdate={onUpdateTask}
+                  onReset={onResetTask}
+                  pomodoro={
+                    pomodoroControls
+                      ? {
+                          activeTaskId: pomodoroControls.activeTaskId,
+                          mode: pomodoroControls.mode,
+                          runState: pomodoroControls.runState,
+                          remainingSeconds: pomodoroControls.remainingSeconds,
+                          completedCount: pomodoroControls.stats[task.id] ?? 0,
+                          onStart: pomodoroControls.onStart,
+                          onPause: pomodoroControls.onPause,
+                          onResume: pomodoroControls.onResume,
+                          onReset: pomodoroControls.onReset,
+                        }
+                      : undefined
+                  }
+                />
+              ))
+            )}
+          </div>
 
-    {quadrant === 'Q4' && onRequestCreateTask ? (
-      <button
-        type="button"
-        className={styles.addButton}
-        aria-label={`Добавить задачу в квадрант ${quadrant}`}
-        onClick={() => onRequestCreateTask(quadrant)}
-      >
-        + Добавить задачу
-      </button>
-    ) : null}
-  </>
-)}
+          {quadrant === 'Q4' && onRequestCreateTask ? (
+            <button
+              type="button"
+              className={styles.addButton}
+              aria-label={`Добавить задачу в квадрант ${quadrant}`}
+              onClick={() => onRequestCreateTask(quadrant)}
+            >
+              + Добавить задачу
+            </button>
+          ) : null}
+        </>
+      ) : null}
     </section>
   );
 }
@@ -209,7 +180,8 @@ export function QuadrantBoard({
   onUpdateTask,
   onResetTask,
   onToggleCollapse,
-  onRequestCreateTask, // optional
+  onRequestCreateTask,
+  pomodoroControls,
 }: QuadrantBoardProps) {
   return (
     <div className={styles.board}>
@@ -224,8 +196,9 @@ export function QuadrantBoard({
           onDrop={onDropTask}
           onUpdateTask={onUpdateTask}
           onResetTask={onResetTask}
-onRequestCreateTask={onRequestCreateTask}
-onToggleCollapse={onToggleCollapse}
+          onRequestCreateTask={onRequestCreateTask}
+          onToggleCollapse={onToggleCollapse}
+          pomodoroControls={pomodoroControls}
         />
       ))}
     </div>

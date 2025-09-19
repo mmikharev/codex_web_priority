@@ -13,6 +13,17 @@ interface BacklogListProps {
   onUpdateTask: (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  pomodoroControls?: {
+    activeTaskId: string | null;
+    mode: 'focus' | 'short_break' | 'long_break' | 'idle';
+    runState: 'running' | 'paused' | 'stopped';
+    remainingSeconds: number;
+    stats: Record<string, number>;
+    onStart: (taskId: string) => void;
+    onPause: () => void;
+    onResume: () => void;
+    onReset: () => void;
+  };
 }
 
 export function BacklogList({
@@ -24,6 +35,7 @@ export function BacklogList({
   onUpdateTask,
   collapsed,
   onToggleCollapse,
+  pomodoroControls,
 }: BacklogListProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const displayedCount = totalCount ?? tasks.length;
@@ -93,7 +105,26 @@ export function BacklogList({
             </div>
           ) : (
             tasks.map((task) => (
-              <TaskCard key={task.id} task={task} onUpdate={onUpdateTask} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                onUpdate={onUpdateTask}
+                pomodoro={
+                  pomodoroControls
+                    ? {
+                        activeTaskId: pomodoroControls.activeTaskId,
+                        mode: pomodoroControls.mode,
+                        runState: pomodoroControls.runState,
+                        remainingSeconds: pomodoroControls.remainingSeconds,
+                        completedCount: pomodoroControls.stats[task.id] ?? 0,
+                        onStart: pomodoroControls.onStart,
+                        onPause: pomodoroControls.onPause,
+                        onResume: pomodoroControls.onResume,
+                        onReset: pomodoroControls.onReset,
+                      }
+                    : undefined
+                }
+              />
             ))
           )}
         </div>

@@ -1,8 +1,205 @@
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #0f172a;
   background-color: #e4ecff;
+  color: #0f172a;
+
+  --toolbar-bg: rgba(255, 255, 255, 0.35);
+  --toolbar-border: rgba(255, 255, 255, 0.55);
+  --toolbar-shadow: 0 18px 40px -32px rgba(15, 23, 42, 0.45);
+  --toolbar-icon-color: rgba(15, 23, 42, 0.75);
+  --toolbar-icon-color-hover: rgba(37, 99, 235, 0.95);
+  --toolbar-hover-bg: rgba(37, 99, 235, 0.12);
+  --toolbar-input-bg: rgba(255, 255, 255, 0.7);
+  --toolbar-input-border: rgba(37, 99, 235, 0.2);
+  --toolbar-input-color: #0f172a;
+  --toolbar-focus-border: rgba(37, 99, 235, 0.45);
+
+  --priority-card-bg: rgba(255, 255, 255, 0.55);
+  --priority-card-text: rgba(15, 23, 42, 0.85);
+  --priority-card-shadow: 0 28px 48px -40px rgba(15, 23, 42, 0.45);
+  --priority-card-shadow-hover: 0 32px 60px -42px rgba(15, 23, 42, 0.55);
+  --priority-card-counter: rgba(15, 23, 42, 0.92);
+  --priority-card-counter-muted: rgba(15, 23, 42, 0.5);
+
+  --pomodoro-bg: rgba(255, 255, 255, 0.6);
+  --pomodoro-text: rgba(15, 23, 42, 0.9);
+  --pomodoro-shadow: 0 32px 64px -48px rgba(15, 23, 42, 0.5);
+  --pomodoro-border: rgba(255, 255, 255, 0.55);
+  --pomodoro-track-bg: rgba(15, 23, 42, 0.08);
+  --pomodoro-track-fill: linear-gradient(135deg, rgba(37, 99, 235, 0.85), rgba(14, 165, 233, 0.85));
+  --pomodoro-task-color: rgba(15, 23, 42, 0.6);
+  --pomodoro-button-bg: rgba(59, 130, 246, 0.12);
+  --pomodoro-button-text: rgba(37, 99, 235, 0.95);
+  --pomodoro-button-shadow: 0 18px 32px -28px rgba(37, 99, 235, 0.35);
+  --pomodoro-button-shadow-hover: 0 20px 36px -28px rgba(37, 99, 235, 0.45);
+  --pomodoro-stat-bg: rgba(255, 255, 255, 0.55);
+  --pomodoro-input-bg: rgba(255, 255, 255, 0.68);
+
+  --fab-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(14, 165, 233, 0.85));
+  --fab-fg: #ffffff;
+  --fab-shadow: 0 18px 40px -28px rgba(37, 99, 235, 0.7);
+  --fab-shadow-hover: 0 24px 48px -32px rgba(37, 99, 235, 0.85);
+
+  --task-card-bg: rgba(255, 255, 255, 0.7);
+  --task-card-border: rgba(255, 255, 255, 0.65);
+  --task-card-shadow: 0 18px 32px -24px rgba(15, 23, 42, 0.45);
+  --task-card-title: rgba(15, 23, 42, 0.92);
+  --task-card-title-done: rgba(15, 23, 42, 0.55);
+  --task-card-backlog-bg: rgba(37, 99, 235, 0.1);
+  --task-card-backlog-text: rgba(37, 99, 235, 0.95);
+  --task-card-backlog-bg-hover: rgba(37, 99, 235, 0.2);
+  --task-card-backlog-text-hover: rgba(37, 99, 235, 1);
+  --task-card-due-bg: rgba(255, 255, 255, 0.5);
+  --task-card-due-border: rgba(255, 255, 255, 0.6);
+  --task-card-due-text: rgba(15, 23, 42, 0.65);
+  --task-card-input-border: rgba(255, 255, 255, 0.6);
+  --task-card-input-bg: rgba(255, 255, 255, 0.72);
+  --task-card-input-text: #0f172a;
+
+  --quadrant-bg: rgba(255, 255, 255, 0.28);
+  --quadrant-border: rgba(255, 255, 255, 0.45);
+  --quadrant-shadow: 0 30px 60px -45px rgba(15, 23, 42, 0.45);
+  --quadrant-shadow-hover: 0 34px 64px -44px rgba(15, 23, 42, 0.55);
+  --quadrant-title: rgba(15, 23, 42, 0.9);
+  --quadrant-subtitle: rgba(15, 23, 42, 0.55);
+  --quadrant-stats: rgba(15, 23, 42, 0.6);
+  --quadrant-stats-strong: rgba(15, 23, 42, 0.85);
+  --quadrant-toggle-bg: rgba(15, 23, 42, 0.08);
+  --quadrant-toggle-text: rgba(15, 23, 42, 0.75);
+  --quadrant-toggle-bg-hover: rgba(59, 130, 246, 0.16);
+  --quadrant-toggle-text-hover: rgba(37, 99, 235, 0.9);
+  --quadrant-drop-border: rgba(255, 255, 255, 0.24);
+  --quadrant-drop-bg: rgba(255, 255, 255, 0.16);
+  --quadrant-drop-border-active: rgba(56, 189, 248, 0.8);
+  --quadrant-drop-bg-active: rgba(56, 189, 248, 0.18);
+  --quadrant-empty: rgba(15, 23, 42, 0.6);
+
+  --backlog-bg: rgba(255, 255, 255, 0.32);
+  --backlog-border: rgba(255, 255, 255, 0.45);
+  --backlog-shadow: 0 28px 56px -40px rgba(15, 23, 42, 0.45);
+  --backlog-shadow-hover: 0 32px 60px -42px rgba(15, 23, 42, 0.5);
+  --backlog-title: rgba(15, 23, 42, 0.9);
+  --backlog-count: rgba(14, 116, 144, 0.9);
+  --backlog-checkbox-text: rgba(15, 23, 42, 0.65);
+  --backlog-toggle-bg: rgba(15, 23, 42, 0.08);
+  --backlog-toggle-text: rgba(15, 23, 42, 0.75);
+  --backlog-toggle-bg-hover: rgba(59, 130, 246, 0.16);
+  --backlog-toggle-text-hover: rgba(37, 99, 235, 0.9);
+  --backlog-drop-border: rgba(255, 255, 255, 0.2);
+  --backlog-drop-bg: rgba(255, 255, 255, 0.18);
+  --backlog-drop-border-active: rgba(59, 130, 246, 0.65);
+  --backlog-drop-bg-active: rgba(59, 130, 246, 0.15);
+  --backlog-empty: rgba(15, 23, 42, 0.6);
+
+  --modal-bg: rgba(255, 255, 255, 0.9);
+  --modal-text: rgba(15, 23, 42, 0.92);
+  --modal-border: rgba(255, 255, 255, 0.6);
+  --modal-shadow: 0 34px 64px -44px rgba(15, 23, 42, 0.45);
+
+  --focus-overlay-bg: rgba(15, 23, 42, 0.1);
+  --focus-overlay-shadow: 0 40px 80px -60px rgba(15, 23, 42, 0.45);
+  --focus-overlay-text: rgba(15, 23, 42, 0.9);
+}
+
+:root[data-theme='dark'] {
+  background-color: #0b1324;
+  color: #f8fafc;
+
+  --toolbar-bg: rgba(15, 23, 42, 0.65);
+  --toolbar-border: rgba(59, 130, 246, 0.35);
+  --toolbar-shadow: 0 18px 36px -24px rgba(8, 47, 73, 0.6);
+  --toolbar-icon-color: rgba(148, 163, 184, 0.95);
+  --toolbar-icon-color-hover: #60a5fa;
+  --toolbar-hover-bg: rgba(37, 99, 235, 0.22);
+  --toolbar-input-bg: rgba(15, 23, 42, 0.9);
+  --toolbar-input-border: rgba(37, 99, 235, 0.45);
+  --toolbar-input-color: #e2e8f0;
+  --toolbar-focus-border: rgba(37, 99, 235, 0.75);
+
+  --priority-card-bg: rgba(15, 23, 42, 0.6);
+  --priority-card-text: rgba(226, 232, 240, 0.95);
+  --priority-card-shadow: 0 24px 52px -40px rgba(2, 6, 23, 0.85);
+  --priority-card-shadow-hover: 0 28px 60px -42px rgba(2, 6, 23, 0.9);
+  --priority-card-counter: #f1f5f9;
+  --priority-card-counter-muted: rgba(226, 232, 240, 0.65);
+
+  --pomodoro-bg: rgba(15, 23, 42, 0.75);
+  --pomodoro-text: rgba(226, 232, 240, 0.95);
+  --pomodoro-shadow: 0 28px 60px -40px rgba(2, 6, 23, 0.85);
+  --pomodoro-border: rgba(37, 99, 235, 0.35);
+  --pomodoro-track-bg: rgba(15, 23, 42, 0.35);
+  --pomodoro-task-color: rgba(148, 163, 184, 0.9);
+  --pomodoro-button-bg: rgba(59, 130, 246, 0.25);
+  --pomodoro-button-text: rgba(191, 219, 254, 0.95);
+  --pomodoro-button-shadow: 0 18px 32px -28px rgba(37, 99, 235, 0.45);
+  --pomodoro-button-shadow-hover: 0 22px 36px -28px rgba(37, 99, 235, 0.55);
+  --pomodoro-stat-bg: rgba(30, 41, 59, 0.65);
+  --pomodoro-input-bg: rgba(15, 23, 42, 0.85);
+
+  --fab-bg: linear-gradient(135deg, rgba(14, 116, 144, 0.95), rgba(37, 99, 235, 0.9));
+  --fab-shadow: 0 22px 44px -32px rgba(15, 118, 110, 0.7);
+  --fab-shadow-hover: 0 26px 48px -30px rgba(15, 118, 110, 0.85);
+
+  --task-card-bg: rgba(15, 23, 42, 0.7);
+  --task-card-border: rgba(59, 130, 246, 0.25);
+  --task-card-shadow: 0 18px 32px -22px rgba(2, 6, 23, 0.85);
+  --task-card-title: rgba(226, 232, 240, 0.95);
+  --task-card-title-done: rgba(148, 163, 184, 0.6);
+  --task-card-backlog-bg: rgba(14, 165, 233, 0.25);
+  --task-card-backlog-text: rgba(191, 219, 254, 0.95);
+  --task-card-backlog-bg-hover: rgba(14, 165, 233, 0.35);
+  --task-card-backlog-text-hover: rgba(191, 219, 254, 1);
+  --task-card-due-bg: rgba(15, 23, 42, 0.65);
+  --task-card-due-border: rgba(37, 99, 235, 0.35);
+  --task-card-due-text: rgba(148, 163, 184, 0.85);
+  --task-card-input-border: rgba(37, 99, 235, 0.35);
+  --task-card-input-bg: rgba(15, 23, 42, 0.75);
+  --task-card-input-text: rgba(226, 232, 240, 0.92);
+
+  --quadrant-bg: rgba(15, 23, 42, 0.68);
+  --quadrant-border: rgba(59, 130, 246, 0.35);
+  --quadrant-shadow: 0 28px 60px -40px rgba(2, 6, 23, 0.85);
+  --quadrant-shadow-hover: 0 32px 64px -38px rgba(2, 6, 23, 0.9);
+  --quadrant-title: rgba(226, 232, 240, 0.95);
+  --quadrant-subtitle: rgba(148, 163, 184, 0.78);
+  --quadrant-stats: rgba(148, 163, 184, 0.75);
+  --quadrant-stats-strong: rgba(226, 232, 240, 0.95);
+  --quadrant-toggle-bg: rgba(37, 99, 235, 0.25);
+  --quadrant-toggle-text: rgba(191, 219, 254, 0.95);
+  --quadrant-toggle-bg-hover: rgba(37, 99, 235, 0.35);
+  --quadrant-toggle-text-hover: rgba(255, 255, 255, 0.95);
+  --quadrant-drop-border: rgba(59, 130, 246, 0.35);
+  --quadrant-drop-bg: rgba(15, 23, 42, 0.45);
+  --quadrant-drop-border-active: rgba(56, 189, 248, 0.85);
+  --quadrant-drop-bg-active: rgba(15, 118, 110, 0.35);
+  --quadrant-empty: rgba(148, 163, 184, 0.7);
+
+  --backlog-bg: rgba(15, 23, 42, 0.72);
+  --backlog-border: rgba(59, 130, 246, 0.35);
+  --backlog-shadow: 0 26px 52px -36px rgba(2, 6, 23, 0.85);
+  --backlog-shadow-hover: 0 30px 60px -36px rgba(2, 6, 23, 0.9);
+  --backlog-title: rgba(226, 232, 240, 0.95);
+  --backlog-count: rgba(94, 234, 212, 0.95);
+  --backlog-checkbox-text: rgba(148, 163, 184, 0.8);
+  --backlog-toggle-bg: rgba(37, 99, 235, 0.25);
+  --backlog-toggle-text: rgba(191, 219, 254, 0.95);
+  --backlog-toggle-bg-hover: rgba(37, 99, 235, 0.35);
+  --backlog-toggle-text-hover: rgba(255, 255, 255, 0.98);
+  --backlog-drop-border: rgba(59, 130, 246, 0.35);
+  --backlog-drop-bg: rgba(30, 41, 59, 0.45);
+  --backlog-drop-border-active: rgba(56, 189, 248, 0.75);
+  --backlog-drop-bg-active: rgba(15, 118, 110, 0.3);
+  --backlog-empty: rgba(148, 163, 184, 0.75);
+
+  --modal-bg: rgba(15, 23, 42, 0.88);
+  --modal-text: rgba(226, 232, 240, 0.95);
+  --modal-border: rgba(37, 99, 235, 0.45);
+  --modal-shadow: 0 34px 64px -38px rgba(2, 6, 23, 0.9);
+
+  --focus-overlay-bg: rgba(15, 23, 42, 0.8);
+  --focus-overlay-shadow: 0 40px 80px -60px rgba(2, 6, 23, 0.95);
+  --focus-overlay-text: rgba(226, 232, 240, 0.95);
 }
 
 * {
@@ -18,6 +215,14 @@ body {
     radial-gradient(circle at 50% 100%, rgba(129, 140, 248, 0.25), transparent 55%),
     linear-gradient(180deg, rgba(241, 245, 255, 0.9), rgba(226, 232, 255, 0.6));
   background-attachment: fixed;
+}
+
+:root[data-theme='dark'] body {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.18), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.22), transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(124, 58, 237, 0.18), transparent 50%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.95), rgba(15, 23, 42, 0.85));
 }
 
 button,
