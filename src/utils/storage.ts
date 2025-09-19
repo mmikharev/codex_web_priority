@@ -2,7 +2,7 @@ import { Quadrant, Task, TaskMap } from '../types';
 
 const STORAGE_KEY = 'eisenhower_state_v1';
 const BACKUP_KEY = `${STORAGE_KEY}_backup_v1`;
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 3;
 
 interface PersistedStateV1 {
   version?: 1;
@@ -14,7 +14,27 @@ interface PersistedStateV2 {
   tasks: TaskMap;
 }
 
-type PersistedState = PersistedStateV1 | PersistedStateV2;
+interface PersistedStateV3 {
+  version: 3;
+  tasks: TaskMap;
+}
+
+type PersistedState = PersistedStateV1 | PersistedStateV2 | PersistedStateV3;
+
+function ensureTaskDefaults(task: Task & { quadrant?: Quadrant }): Task {
+  const createdAt = typeof task.createdAt === 'string' ? task.createdAt : new Date().toISOString();
+  const completedAt = typeof task.completedAt === 'string' ? task.completedAt : null;
+  const timeSpentSeconds = typeof task.timeSpentSeconds === 'number' ? Math.max(0, task.timeSpentSeconds) : 0;
+
+  return {
+    ...task,
+    quadrant: task.quadrant ?? 'backlog',
+    done: task.done ?? false,
+    createdAt,
+    completedAt,
+    timeSpentSeconds,
+  };
+}
 
 function withDoneFlag(tasks: Record<string, Omit<Task, 'done'> | Task | undefined>): TaskMap {
   const result: TaskMap = {};
@@ -26,13 +46,16 @@ function withDoneFlag(tasks: Record<string, Omit<Task, 'done'> | Task | undefine
     const { done, quadrant, ...rest } = task as Task & { quadrant?: Quadrant };
     const normalizedQuadrant: Quadrant = quadrant ?? 'backlog';
 
-    result[id] = {
+    result[id] = ensureTaskDefaults({
       id,
       title: rest.title ?? id,
       due: rest.due ?? null,
       quadrant: normalizedQuadrant,
       done: done ?? false,
-    };
+      createdAt: (task as Task).createdAt,
+      completedAt: (task as Task).completedAt,
+      timeSpentSeconds: (task as Task).timeSpentSeconds,
+    });
   });
   return result;
 }
@@ -67,6 +90,10 @@ export function loadState(): { tasks: TaskMap; error?: Error } {
     }
 
     if ('version' in parsed) {
+      if (parsed.version === 3) {
+        return { tasks: withDoneFlag(parsed.tasks) };
+      }
+
       if (parsed.version === 2) {
         return { tasks: withDoneFlag(parsed.tasks) };
       }
@@ -100,7 +127,7 @@ export function saveState(tasks: TaskMap) {
     return;
   }
 
-  const payload: PersistedStateV2 = { version: CURRENT_VERSION, tasks };
+  const payload: PersistedStateV3 = { version: CURRENT_VERSION, tasks };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 

@@ -53,6 +53,9 @@
   border-radius: 999px;
   color: var(--toolbar-icon-color);
   transition: background 0.2s ease, color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .closeButton:hover {

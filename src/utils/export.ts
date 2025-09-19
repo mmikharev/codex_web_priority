@@ -5,6 +5,9 @@ export interface ExportedTaskSnapshot {
   due: string | null;
   quadrant: Quadrant;
   done: boolean;
+  createdAt?: string;
+  completedAt?: string | null;
+  timeSpentSeconds?: number;
 }
 
 export interface ExportPayloadV2 {
@@ -22,6 +25,9 @@ export function createExportPayload(tasks: TaskMap, exportedAt: Date = new Date(
       due: task.due ?? null,
       quadrant: task.quadrant,
       done: task.done ?? false,
+      createdAt: task.createdAt,
+      completedAt: task.completedAt ?? null,
+      timeSpentSeconds: task.timeSpentSeconds,
     };
   });
 

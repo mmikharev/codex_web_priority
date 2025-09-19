@@ -38,13 +38,39 @@ const DEFAULT_COLLAPSE_STATE: CollapseState = {
   },
 };
 
-function filterTasks(tasks: Task[], query: string, hideCompleted: boolean): Task[] {
+function isCompletedToday(completedAt?: string | null): boolean {
+  if (!completedAt) {
+    return false;
+  }
+  const completedDate = new Date(completedAt);
+  if (Number.isNaN(completedDate.getTime())) {
+    return false;
+  }
+  const now = new Date();
+  return (
+    completedDate.getFullYear() === now.getFullYear() &&
+    completedDate.getMonth() === now.getMonth() &&
+    completedDate.getDate() === now.getDate()
+  );
+}
+
+function filterTasks(
+  tasks: Task[],
+  query: string,
+  options: { hideCompletedToday: boolean; hideCompletedAll: boolean },
+): Task[] {
   const normalized = query.trim().toLowerCase();
 
   return sortTasks(
     tasks.filter((task) => {
-      if (hideCompleted && task.done) {
-        return false;
+      const done = task.done ?? false;
+      if (done) {
+        if (options.hideCompletedAll) {
+          return false;
+        }
+        if (options.hideCompletedToday && isCompletedToday(task.completedAt)) {
+          return false;
+        }
       }
 
       if (!normalized) {
@@ -66,6 +92,8 @@ export default function App() {
     updateTask,
     resetTask,
     addTask,
+    deleteTask,
+    addTimeToTask,
     clearCorruptedState,
     loadError,
   } = useTaskStore();
@@ -78,7 +106,8 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchExpanded, setSearchExpanded] = useState(false);
-  const [hideCompleted, setHideCompleted] = useState(false);
+  const [hideCompletedToday, setHideCompletedToday] = useState(false);
+  const [hideCompletedAll, setHideCompletedAll] = useState(false);
   const [manualFormQuadrant, setManualFormQuadrant] = useState<Quadrant>('backlog');
   const [manualFormFocusToken, setManualFormFocusToken] = useState(0);
   const [isTaskModalOpen, setTaskModalOpen] = useState(false);
@@ -95,22 +124,49 @@ export default function App() {
   const importTextareaRef = useRef<HTMLTextAreaElement>(null);
   const manualFormRef = useRef<HTMLFormElement>(null);
   const modalFocusHandledRef = useRef<'quick' | 'import' | null>(null);
+  const previousPomodoroCountsRef = useRef<Record<string, number>>({});
+  const pomodoroCountsInitializedRef = useRef(false);
 
   const backlogTasks = quadrants.backlog ?? [];
   const allTasks = useMemo(() => Object.values(tasks), [tasks]);
+  const hideOptions = useMemo(
+    () => ({ hideCompletedToday, hideCompletedAll }),
+    [hideCompletedAll, hideCompletedToday],
+  );
   const backlogDisplayTasks = useMemo(() => {
-    if (searchQuery.trim()) {
-      return filterTasks(allTasks, searchQuery, hideCompleted);
-    }
-    return filterTasks(backlogTasks, '', hideCompleted);
-  }, [allTasks, backlogTasks, hideCompleted, searchQuery]);
+    const source = searchQuery.trim() ? allTasks : backlogTasks;
+    return filterTasks(source, searchQuery, hideOptions);
+  }, [allTasks, backlogTasks, hideOptions, searchQuery]);
   const backlogTotalCount = useMemo(() => {
     if (searchQuery.trim()) {
       return backlogDisplayTasks.length;
     }
     return backlogTasks.length;
   }, [backlogDisplayTasks, backlogTasks, searchQuery]);
-  const activeTask = useMemo(() => (pomodoro.activeTaskId ? tasks[pomodoro.activeTaskId] ?? null : null), [pomodoro.activeTaskId, tasks]);
+  const visibleQuadrants = useMemo(() => {
+    const map: Record<Quadrant, Task[]> = { backlog: [], Q1: [], Q2: [], Q3: [], Q4: [] };
+    (Object.keys(map) as Quadrant[]).forEach((quadrant) => {
+      const list = quadrants[quadrant] ?? [];
+      map[quadrant] = filterTasks(list, searchQuery, hideOptions);
+    });
+    return map;
+  }, [quadrants, hideOptions, searchQuery]);
+  const activeTask = useMemo(
+    () => (pomodoro.activeTaskId ? tasks[pomodoro.activeTaskId] ?? null : null),
+    [pomodoro.activeTaskId, tasks],
+  );
+  const backlogSubtitle = useMemo(() => {
+    if (searchQuery.trim()) {
+      return undefined;
+    }
+    if (hideCompletedAll) {
+      return 'Скрыты выполненные задачи';
+    }
+    if (hideCompletedToday) {
+      return 'Скрыты выполненные сегодня';
+    }
+    return undefined;
+  }, [hideCompletedAll, hideCompletedToday, searchQuery]);
 
   const pomodoroControls = useMemo(
     () => ({
@@ -174,6 +230,17 @@ export default function App() {
     [addTask],
   );
 
+  const handleDeleteTask = useCallback(
+    (taskId: string) => {
+      if (pomodoro.activeTaskId === taskId) {
+        pomodoro.reset();
+        setFocusModeEnabled(false);
+      }
+      deleteTask(taskId);
+    },
+    [deleteTask, pomodoro.activeTaskId, pomodoro.reset],
+  );
+
   const handleExportJson = useCallback(() => {
     const exportPayload = createExportPayload(tasks);
     const json = JSON.stringify(exportPayload, null, 2);
@@ -220,8 +287,18 @@ export default function App() {
     setSearchExpanded(false);
   }, []);
 
-  const handleHideCompletedChange = useCallback((value: boolean) => {
-    setHideCompleted(value);
+  const handleHideCompletedTodayChange = useCallback((value: boolean) => {
+    setHideCompletedToday(value);
+    if (!value) {
+      setHideCompletedAll(false);
+    }
+  }, []);
+
+  const handleHideCompletedAllChange = useCallback((value: boolean) => {
+    setHideCompletedAll(value);
+    if (value) {
+      setHideCompletedToday(true);
+    }
   }, []);
 
   const openTaskModal = useCallback(
@@ -298,6 +375,27 @@ export default function App() {
       console.warn('Failed to save collapse state', error);
     }
   }, [collapseLoaded, collapseState]);
+
+  useEffect(() => {
+    if (!pomodoroCountsInitializedRef.current) {
+      previousPomodoroCountsRef.current = { ...pomodoro.stats.completedPerTask };
+      pomodoroCountsInitializedRef.current = true;
+      return;
+    }
+
+    const previous = previousPomodoroCountsRef.current;
+    const focusDuration = pomodoro.config.focusMinutes * 60;
+
+    Object.entries(pomodoro.stats.completedPerTask).forEach(([taskId, count]) => {
+      const before = previous[taskId] ?? 0;
+      if (count > before) {
+        const delta = count - before;
+        addTimeToTask(taskId, delta * focusDuration);
+      }
+    });
+
+    previousPomodoroCountsRef.current = { ...pomodoro.stats.completedPerTask };
+  }, [addTimeToTask, pomodoro.config.focusMinutes, pomodoro.stats.completedPerTask]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -500,6 +598,8 @@ export default function App() {
         config={pomodoro.config}
         stats={pomodoro.stats}
         focusModeEnabled={focusModeEnabled}
+        hideCompletedToday={hideCompletedToday}
+        hideCompletedAll={hideCompletedAll}
         onPause={pomodoro.pause}
         onResume={pomodoro.resume}
         onReset={pomodoro.reset}
@@ -507,6 +607,8 @@ export default function App() {
         onToggleFocusMode={handleToggleFocusMode}
         onUpdateConfig={pomodoro.updateConfig}
         onClearStats={pomodoro.clearStats}
+        onToggleHideCompletedToday={handleHideCompletedTodayChange}
+        onToggleHideCompletedAll={handleHideCompletedAllChange}
       />
 
       {focusModeEnabled && activeTask ? (
@@ -527,6 +629,7 @@ export default function App() {
               onResume: pomodoro.resume,
               onReset: pomodoro.reset,
             }}
+            onDelete={handleDeleteTask}
           />
         </div>
       ) : (
@@ -536,8 +639,6 @@ export default function App() {
               <BacklogList
                 tasks={backlogDisplayTasks}
                 totalCount={backlogTotalCount}
-                hideCompleted={hideCompleted}
-                onHideCompletedChange={handleHideCompletedChange}
                 onDropTask={handleBacklogDrop}
                 onUpdateTask={handleUpdateTask}
                 collapsed={searchQuery ? false : collapseState.backlog}
@@ -547,20 +648,18 @@ export default function App() {
                 subtitle={
                   searchQuery
                     ? `Найдено ${backlogDisplayTasks.length} из ${allTasks.length} задач`
-                    : hideCompleted
-                    ? 'Скрыты выполненные задачи'
-                    : undefined
+                    : backlogSubtitle
                 }
                 collapsible={!searchQuery}
-                showCompletionToggle={!searchQuery}
                 emptyMessage={
                   searchQuery
                     ? `По запросу «${searchQuery.trim()}» ничего не найдено`
-                    : hideCompleted
+                    : hideCompletedAll || hideCompletedToday
                     ? 'Нет задач после применения фильтра'
                     : undefined
                 }
                 showQuadrantBadge={Boolean(searchQuery.trim())}
+                onDeleteTask={handleDeleteTask}
               />
               <p className={styles.hotkeysHint}>
                 Горячие клавиши: / — поиск, i — импорт, Esc — очистить поиск, 0–4 — перемещение задач, P — старт/пауза, R —
@@ -569,7 +668,12 @@ export default function App() {
             </aside>
             <div className={styles.boardSection}>
               <QuadrantBoard
-                quadrants={{ Q1: quadrants.Q1 ?? [], Q2: quadrants.Q2 ?? [], Q3: quadrants.Q3 ?? [], Q4: quadrants.Q4 ?? [] }}
+                quadrants={{
+                  Q1: visibleQuadrants.Q1 ?? [],
+                  Q2: visibleQuadrants.Q2 ?? [],
+                  Q3: visibleQuadrants.Q3 ?? [],
+                  Q4: visibleQuadrants.Q4 ?? [],
+                }}
                 collapsed={collapseState.quadrants}
                 onDropTask={handleQuadrantDrop}
                 onUpdateTask={handleUpdateTask}
@@ -577,6 +681,7 @@ export default function App() {
                 onToggleCollapse={handleToggleQuadrantCollapse}
                 onRequestCreateTask={handleQuadrantCreateRequest}
                 pomodoroControls={pomodoroControls}
+                onDeleteTask={handleDeleteTask}
               />
             </div>
           </div>
