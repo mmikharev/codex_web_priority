@@ -12,6 +12,7 @@ import { SearchBar } from './components/SearchBar';
 import { TaskCard } from './components/TaskCard';
 import { ThemeToggleButton } from './components/ThemeToggleButton';
 import { usePomodoroTimer } from './hooks/usePomodoroTimer';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTaskStore } from './hooks/useTaskStore';
 import { useThemePreference } from './hooks/useThemePreference';
 import { Quadrant, Task } from './types';
@@ -124,8 +125,7 @@ export default function App() {
   const importTextareaRef = useRef<HTMLTextAreaElement>(null);
   const manualFormRef = useRef<HTMLFormElement>(null);
   const modalFocusHandledRef = useRef<'quick' | 'import' | null>(null);
-  const previousPomodoroCountsRef = useRef<Record<string, number>>({});
-  const pomodoroCountsInitializedRef = useRef(false);
+  const processedPomodoroSessionsRef = useRef(0);
 
   const backlogTasks = quadrants.backlog ?? [];
   const allTasks = useMemo(() => Object.values(tasks), [tasks]);
@@ -321,6 +321,10 @@ export default function App() {
     [openTaskModal],
   );
 
+  const handleOpenImportModal = useCallback(() => {
+    openTaskModal({ tab: 'import' });
+  }, [openTaskModal]);
+
   const handleToggleBacklogCollapse = useCallback(() => {
     setCollapseState((previous) => ({
       backlog: !previous.backlog,
@@ -377,131 +381,40 @@ export default function App() {
   }, [collapseLoaded, collapseState]);
 
   useEffect(() => {
-    if (!pomodoroCountsInitializedRef.current) {
-      previousPomodoroCountsRef.current = { ...pomodoro.stats.completedPerTask };
-      pomodoroCountsInitializedRef.current = true;
-      return;
+    const sessions = pomodoro.stats.completedSessions ?? [];
+    if (processedPomodoroSessionsRef.current > sessions.length) {
+      processedPomodoroSessionsRef.current = 0;
     }
-
-    const previous = previousPomodoroCountsRef.current;
-    const focusDuration = pomodoro.config.focusMinutes * 60;
-
-    Object.entries(pomodoro.stats.completedPerTask).forEach(([taskId, count]) => {
-      const before = previous[taskId] ?? 0;
-      if (count > before) {
-        const delta = count - before;
-        addTimeToTask(taskId, delta * focusDuration);
+    for (let index = processedPomodoroSessionsRef.current; index < sessions.length; index += 1) {
+      const session = sessions[index];
+      if (session.durationSeconds > 0) {
+        addTimeToTask(session.taskId, session.durationSeconds);
       }
-    });
+    }
+    processedPomodoroSessionsRef.current = sessions.length;
+  }, [addTimeToTask, pomodoro.stats.completedSessions]);
 
-    previousPomodoroCountsRef.current = { ...pomodoro.stats.completedPerTask };
-  }, [addTimeToTask, pomodoro.config.focusMinutes, pomodoro.stats.completedPerTask]);
+  const handleResetFocusMode = useCallback(() => {
+    setFocusModeEnabled(false);
+  }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key;
-      const normalizedKey = key.toLowerCase();
-      const target = event.target as HTMLElement | null;
-      const isEditableTarget =
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable);
-
-      if (event.metaKey || event.ctrlKey || event.altKey) {
-        if (normalizedKey === 'escape' && searchQuery) {
-          event.preventDefault();
-          setSearchQuery('');
-          setSearchExpanded(false);
-        }
-        return;
-      }
-
-      if (normalizedKey === '/') {
-        event.preventDefault();
-        setSearchExpanded(true);
-        window.requestAnimationFrame(() => {
-          searchInputRef.current?.focus();
-          searchInputRef.current?.select();
-        });
-        return;
-      }
-
-      if (normalizedKey === 'p') {
-        if (isEditableTarget) {
-          return;
-        }
-        event.preventDefault();
-        if (pomodoro.runState === 'running') {
-          pomodoro.pause();
-        } else if (pomodoro.activeTaskId) {
-          pomodoro.resume();
-        }
-        return;
-      }
-
-      if (normalizedKey === 'r') {
-        if (isEditableTarget) {
-          return;
-        }
-        event.preventDefault();
-        pomodoro.reset();
-        setFocusModeEnabled(false);
-        return;
-      }
-
-      if (normalizedKey === 'escape') {
-        if (searchQuery) {
-          event.preventDefault();
-          setSearchQuery('');
-          setSearchExpanded(false);
-        }
-        return;
-      }
-
-      if (isEditableTarget) {
-        return;
-      }
-
-      if (normalizedKey === 'i') {
-        event.preventDefault();
-        openTaskModal({ tab: 'import' });
-        window.requestAnimationFrame(() => {
-          importTextareaRef.current?.focus();
-          importTextareaRef.current?.select?.();
-        });
-        return;
-      }
-
-      if (['0', '1', '2', '3', '4'].includes(key)) {
-        const activeElement = document.activeElement as HTMLElement | null;
-        const taskId = activeElement?.dataset.taskId;
-        if (!taskId) {
-          return;
-        }
-
-        const targetQuadrant: Quadrant =
-          key === '0'
-            ? 'backlog'
-            : key === '1'
-            ? 'Q1'
-            : key === '2'
-            ? 'Q2'
-            : key === '3'
-            ? 'Q3'
-            : 'Q4';
-
-        event.preventDefault();
-        moveTask(taskId, targetQuadrant);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [moveTask, openTaskModal, searchQuery, pomodoro]);
+  useKeyboardShortcuts({
+    searchQuery,
+    setSearchQuery,
+    setSearchExpanded,
+    searchInputRef,
+    openImportModal: handleOpenImportModal,
+    importTextareaRef,
+    pomodoro: {
+      activeTaskId: pomodoro.activeTaskId,
+      runState: pomodoro.runState,
+      pause: pomodoro.pause,
+      resume: pomodoro.resume,
+      reset: pomodoro.reset,
+    },
+    moveTask,
+    onResetFocusMode: handleResetFocusMode,
+  });
 
   useEffect(() => {
     if (!importText) {
