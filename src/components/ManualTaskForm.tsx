@@ -20,10 +20,10 @@ interface ManualTaskFormProps {
 
 const QUADRANT_OPTIONS: Array<{ value: Quadrant; label: string }> = [
   { value: 'backlog', label: 'Бэклог' },
-  { value: 'Q1', label: 'Q1 — Срочно + Важно' },
-  { value: 'Q2', label: 'Q2 — Несрочно + Важно' },
-  { value: 'Q3', label: 'Q3 — Срочно + Неважно' },
-  { value: 'Q4', label: 'Q4 — Несрочно + Неважно' },
+  { value: 'Q1', label: 'Срочно + Важно' },
+  { value: 'Q2', label: 'Несрочно + Важно' },
+  { value: 'Q3', label: 'Срочно + Неважно' },
+  { value: 'Q4', label: 'Несрочно + Неважно' },
 ];
 
 export const ManualTaskForm = forwardRef<HTMLFormElement, ManualTaskFormProps>(

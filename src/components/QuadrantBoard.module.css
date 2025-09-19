@@ -22,12 +22,33 @@
   backdrop-filter: blur(30px) saturate(140%);
   -webkit-backdrop-filter: blur(30px) saturate(140%);
   position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+}
+
+.zone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(140deg, var(--quadrant-accent, rgba(59, 130, 246, 0.75)) 0%, transparent 65%);
+  opacity: 0.18;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
 }
 
 .zone:hover {
   transform: translateY(-2px);
   box-shadow: var(--quadrant-shadow-hover);
+  border-color: color-mix(in srgb, var(--quadrant-accent, rgba(59, 130, 246, 0.75)) 30%, var(--quadrant-border));
+}
+
+.zone:hover::after {
+  opacity: 0.28;
+}
+
+.zone > * {
+  position: relative;
+  z-index: 1;
 }
 
 .zoneCollapsed {
@@ -35,17 +56,12 @@
 }
 
 .zoneHeader {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
-}
-
-@media (min-width: 720px) {
-  .zoneHeader {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    align-items: center;
-  }
 }
 
 .zoneHeaderContent {
@@ -54,15 +70,21 @@
 
 .zoneTitle {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--quadrant-title);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.zoneSubtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--quadrant-subtitle);
+.zoneTitle::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--quadrant-accent, #3b82f6) 80%, white 20%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--quadrant-accent, #3b82f6) 18%, transparent);
 }
 
 .zoneStats {
@@ -72,10 +94,11 @@
   font-size: 12px;
   color: var(--quadrant-stats);
   justify-content: flex-start;
+  margin-left: auto;
 }
 
 .zoneStatsItem strong {
-  color: var(--quadrant-stats-strong);
+  color: color-mix(in srgb, var(--quadrant-accent, #3b82f6) 65%, var(--quadrant-stats-strong));
 }
 
 .zoneStatsMuted {
@@ -157,7 +180,7 @@
   pointer-events: none;
   transform: translateY(6px) scale(0.95);
   transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  z-index: 1;
+  z-index: 2;
 }
 
 .addButton:hover,

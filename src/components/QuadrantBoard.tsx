@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { CSSProperties, useMemo, useState } from 'react';
 import { Quadrant, Task } from '../types';
 import { getTaskIdFromDrag } from '../utils/dnd';
 import { TaskCard } from './TaskCard';
@@ -9,12 +9,12 @@ type QuadrantId = Exclude<Quadrant, 'backlog'>;
 const QUADRANT_DETAILS: Array<{
   id: QuadrantId;
   title: string;
-  subtitle: string;
+  accent: string;
 }> = [
-  { id: 'Q1', title: 'Q1 — Срочно + Важно', subtitle: 'Срочные задачи, требующие немедленного внимания' },
-  { id: 'Q2', title: 'Q2 — Несрочно + Важно', subtitle: 'Стратегические задачи и развитие' },
-  { id: 'Q3', title: 'Q3 — Срочно + Неважно', subtitle: 'Делегируйте или минимизируйте' },
-  { id: 'Q4', title: 'Q4 — Несрочно + Неважно', subtitle: 'Избегайте или откладывайте' },
+  { id: 'Q1', title: 'Срочно + Важно', accent: '#ef4444' },
+  { id: 'Q2', title: 'Несрочно + Важно', accent: '#22c55e' },
+  { id: 'Q3', title: 'Срочно + Неважно', accent: '#f97316' },
+  { id: 'Q4', title: 'Несрочно + Неважно', accent: '#8b5cf6' },
 ];
 
 interface QuadrantBoardProps {
@@ -42,7 +42,7 @@ interface QuadrantBoardProps {
 function QuadrantZone({
   quadrant,
   title,
-  subtitle,
+  accent,
   tasks,
   collapsed,
   onDrop,
@@ -55,7 +55,7 @@ function QuadrantZone({
 }: {
   quadrant: QuadrantId;
   title: string;
-  subtitle: string;
+  accent: string;
   tasks: Task[];
   collapsed: boolean;
   onDrop: (taskId: string, quadrant: QuadrantId) => void;
@@ -98,11 +98,13 @@ function QuadrantZone({
   };
 
   return (
-    <section className={`${styles.zone} ${collapsed ? styles.zoneCollapsed : ''}`.trim()}>
+    <section
+      className={`${styles.zone} ${collapsed ? styles.zoneCollapsed : ''}`.trim()}
+      style={{ '--quadrant-accent': accent } as CSSProperties}
+    >
       <header className={styles.zoneHeader}>
         <div className={styles.zoneHeaderContent}>
           <h3 className={styles.zoneTitle}>{title}</h3>
-          <p className={styles.zoneSubtitle}>{subtitle}</p>
         </div>
         <div className={styles.zoneStats}>
           <span className={styles.zoneStatsItem}>
@@ -193,12 +195,12 @@ export function QuadrantBoard({
 }: QuadrantBoardProps) {
   return (
     <div className={styles.board}>
-      {QUADRANT_DETAILS.map(({ id, title, subtitle }) => (
+      {QUADRANT_DETAILS.map(({ id, title, accent }) => (
         <QuadrantZone
           key={id}
           quadrant={id as QuadrantId}
           title={title}
-          subtitle={subtitle}
+          accent={accent}
           tasks={quadrants[id] ?? []}
           collapsed={collapsed[id as QuadrantId] ?? false}
           onDrop={onDropTask}
