@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Quadrant, Task, TaskMap } from '../types';
+import { ContemplationTag, Quadrant, Task, TaskMap } from '../types';
 import { clearState, loadState, scheduleSave } from '../utils/storage';
 import { sortTasks } from '../utils/taskSort';
 
@@ -61,6 +61,8 @@ function finalizeTask(input: {
   createdAt?: string;
   completedAt?: string | null;
   timeSpentSeconds?: number;
+  contemplationTag?: ContemplationTag | null;
+  capturedViaContemplation?: boolean;
 }): Task {
   const createdAt = typeof input.createdAt === 'string' ? input.createdAt : new Date().toISOString();
   const completedAt = typeof input.completedAt === 'string' ? input.completedAt : null;
@@ -75,11 +77,22 @@ function finalizeTask(input: {
     createdAt,
     completedAt,
     timeSpentSeconds,
+    contemplationTag: input.contemplationTag ?? null,
+    capturedViaContemplation: input.capturedViaContemplation ?? false,
   };
 }
 
 function isQuadrant(value: unknown): value is Quadrant {
   return value === 'backlog' || value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4';
+}
+
+function isContemplationTag(value: unknown): value is ContemplationTag {
+  return (
+    value === 'energy_high' ||
+    value === 'energy_gentle' ||
+    value === 'mood_pleasant' ||
+    value === 'mood_neutral'
+  );
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -129,6 +142,8 @@ function isExportPayload(
       createdAt?: string;
       completedAt?: string | null;
       timeSpentSeconds?: number;
+      contemplationTag?: ContemplationTag | null;
+      capturedViaContemplation?: boolean;
     }
   >;
 } {
@@ -178,6 +193,8 @@ export function useTaskStore() {
               createdAt: task.createdAt,
               completedAt: task.completedAt,
               timeSpentSeconds: task.timeSpentSeconds,
+              contemplationTag: task.contemplationTag ?? null,
+              capturedViaContemplation: task.capturedViaContemplation ?? false,
             });
           });
         } else {
@@ -191,6 +208,8 @@ export function useTaskStore() {
               createdAt: task.createdAt,
               completedAt: task.completedAt,
               timeSpentSeconds: task.timeSpentSeconds,
+              contemplationTag: task.contemplationTag ?? null,
+              capturedViaContemplation: task.capturedViaContemplation ?? false,
             });
           });
         }
@@ -235,6 +254,13 @@ export function useTaskStore() {
             typeof descriptor.timeSpentSeconds === 'number' && Number.isFinite(descriptor.timeSpentSeconds)
               ? Math.max(0, descriptor.timeSpentSeconds)
               : current?.timeSpentSeconds;
+          const normalizedTag = isContemplationTag((descriptor as { contemplationTag?: unknown }).contemplationTag)
+            ? ((descriptor as { contemplationTag?: unknown }).contemplationTag as ContemplationTag)
+            : current?.contemplationTag ?? null;
+          const normalizedCaptured =
+            typeof (descriptor as { capturedViaContemplation?: unknown }).capturedViaContemplation === 'boolean'
+              ? Boolean((descriptor as { capturedViaContemplation?: unknown }).capturedViaContemplation)
+              : current?.capturedViaContemplation ?? false;
 
           if (base[id]) {
             updated += 1;
@@ -251,6 +277,8 @@ export function useTaskStore() {
             createdAt: normalizedCreatedAt ?? current?.createdAt,
             completedAt: normalizedDone ? normalizedCompletedAt : null,
             timeSpentSeconds: normalizedTimeSpent,
+            contemplationTag: normalizedTag,
+            capturedViaContemplation: normalizedCaptured,
           });
         }
 
@@ -282,6 +310,8 @@ export function useTaskStore() {
                   createdAt: current.createdAt,
                   completedAt: current.completedAt,
                   timeSpentSeconds: current.timeSpentSeconds,
+                  contemplationTag: current.contemplationTag ?? null,
+                  capturedViaContemplation: current.capturedViaContemplation ?? false,
                 });
                 updated += 1;
               } else {
@@ -291,6 +321,8 @@ export function useTaskStore() {
                   due,
                   quadrant: quadrantKey,
                   done: false,
+                  contemplationTag: null,
+                  capturedViaContemplation: false,
                 });
                 added += 1;
               }
@@ -318,6 +350,8 @@ export function useTaskStore() {
                 createdAt: current.createdAt,
                 completedAt: current.completedAt,
                 timeSpentSeconds: current.timeSpentSeconds,
+                contemplationTag: current.contemplationTag ?? null,
+                capturedViaContemplation: current.capturedViaContemplation ?? false,
               });
               updated += 1;
             } else {
@@ -327,6 +361,8 @@ export function useTaskStore() {
                 due,
                 quadrant: 'backlog',
                 done: false,
+                contemplationTag: null,
+                capturedViaContemplation: false,
               });
               added += 1;
             }
@@ -357,7 +393,7 @@ export function useTaskStore() {
     });
   }, []);
 
-  const updateTask = useCallback((taskId: string, updates: Partial<Pick<Task, 'title' | 'due' | 'done' | 'timeSpentSeconds'>>) => {
+  const updateTask = useCallback((taskId: string, updates: Partial<Pick<Task, 'title' | 'due' | 'done' | 'timeSpentSeconds' | 'contemplationTag'>>) => {
     setTasks((prev) => {
       const current = prev[taskId];
       if (!current) {
@@ -390,6 +426,8 @@ export function useTaskStore() {
         createdAt,
         completedAt,
         timeSpentSeconds: finalTimeSpent,
+        contemplationTag:
+          updates.contemplationTag !== undefined ? updates.contemplationTag : current.contemplationTag ?? null,
       };
       return {
         ...prev,
@@ -398,7 +436,13 @@ export function useTaskStore() {
     });
   }, []);
 
-  const addTask = useCallback((task: { title: string; due: string | null; quadrant: Quadrant }) => {
+  const addTask = useCallback((task: {
+    title: string;
+    due: string | null;
+    quadrant: Quadrant;
+    contemplationTag?: ContemplationTag | null;
+    capturedViaContemplation?: boolean;
+  }) => {
     setTasks((prev) => {
       const normalizedTitle = task.title.trim() || 'Новая задача';
       const normalizedQuadrant = isQuadrant(task.quadrant) ? task.quadrant : 'backlog';
@@ -416,6 +460,8 @@ export function useTaskStore() {
           createdAt: new Date().toISOString(),
           completedAt: null,
           timeSpentSeconds: 0,
+          contemplationTag: task.contemplationTag ?? null,
+          capturedViaContemplation: task.capturedViaContemplation ?? false,
         },
       };
     });
