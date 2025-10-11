@@ -47,9 +47,10 @@ function withDoneFlag(tasks: Record<string, Omit<Task, 'done'> | Task | undefine
     const normalizedQuadrant: Quadrant = quadrant ?? 'backlog';
 
     result[id] = ensureTaskDefaults({
+      ...(rest as Task),
       id,
-      title: rest.title ?? id,
-      due: rest.due ?? null,
+      title: (rest as Task).title ?? id,
+      due: (rest as Task).due ?? null,
       quadrant: normalizedQuadrant,
       done: done ?? false,
       createdAt: (task as Task).createdAt,

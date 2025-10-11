@@ -8,6 +8,8 @@ export interface ExportedTaskSnapshot {
   createdAt?: string;
   completedAt?: string | null;
   timeSpentSeconds?: number;
+  contemplationTag?: string | null;
+  capturedViaContemplation?: boolean;
 }
 
 export interface ExportPayloadV2 {
@@ -28,6 +30,8 @@ export function createExportPayload(tasks: TaskMap, exportedAt: Date = new Date(
       createdAt: task.createdAt,
       completedAt: task.completedAt ?? null,
       timeSpentSeconds: task.timeSpentSeconds,
+      contemplationTag: task.contemplationTag ?? null,
+      capturedViaContemplation: task.capturedViaContemplation ?? false,
     };
   });
 

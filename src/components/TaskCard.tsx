@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Quadrant, Task } from '../types';
 import { formatDate, fromDateTimeLocalInput, toDateTimeLocalInputValue } from '../utils/date';
+import { getContemplationTagLabel } from '../utils/contemplation';
 import { setTaskDragData } from '../utils/dnd';
 import styles from './TaskCard.module.css';
 
@@ -241,6 +242,8 @@ export function TaskCard({ task, onUpdate, onReset, pomodoro, showQuadrantBadge 
   const isActive = pomodoro?.activeTaskId === task.id;
   const pomodoroCount = pomodoro?.completedCount ?? 0;
   const timeSpentLabel = formatDurationShort(task.timeSpentSeconds ?? 0);
+  const contemplationTagLabel = getContemplationTagLabel(task.contemplationTag);
+  const showMetaRow = Boolean(contemplationTagLabel || task.capturedViaContemplation);
 
   const quadrantBadge =
     showQuadrantBadge && task.quadrant !== 'backlog' ? QUADRANT_LABELS[task.quadrant as Exclude<Quadrant, 'backlog'>] : null;
@@ -291,6 +294,16 @@ export function TaskCard({ task, onUpdate, onReset, pomodoro, showQuadrantBadge 
           </button>
         ) : null}
       </div>
+      {showMetaRow ? (
+        <div className={styles.metaRow}>
+          {task.capturedViaContemplation ? (
+            <span className={`${styles.metaBadge} ${styles.metaBadgeSource}`.trim()}>Созерцание точки</span>
+          ) : null}
+          {contemplationTagLabel ? (
+            <span className={`${styles.metaBadge} ${styles.metaBadgeTag}`.trim()}>{contemplationTagLabel}</span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className={styles.dueRow}>
         {editingField === 'due' ? (

@@ -7,12 +7,18 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Quadrant } from '../types';
+import { ContemplationTag, Quadrant } from '../types';
 import { fromDateTimeLocalInput } from '../utils/date';
 import styles from './ManualTaskForm.module.css';
 
 interface ManualTaskFormProps {
-  onCreateTask: (task: { title: string; due: string | null; quadrant: Quadrant }) => void;
+  onCreateTask: (task: {
+    title: string;
+    due: string | null;
+    quadrant: Quadrant;
+    contemplationTag?: ContemplationTag | null;
+    capturedViaContemplation?: boolean;
+  }) => void;
   initialQuadrant?: Quadrant;
   focusTrigger?: number;
   variant?: 'standalone' | 'modal';
@@ -97,7 +103,7 @@ export const ManualTaskForm = forwardRef<HTMLFormElement, ManualTaskFormProps>(
 
       setError(null);
       setErrorField(null);
-      onCreateTask({ title: normalizedTitle, due: dueIso, quadrant });
+      onCreateTask({ title: normalizedTitle, due: dueIso, quadrant, contemplationTag: null });
       resetForm();
       setFeedback('Задача добавлена');
     };

@@ -21,6 +21,7 @@ interface KeyboardShortcutOptions {
   pomodoro: PomodoroShortcutControls;
   moveTask: (taskId: string, quadrant: Quadrant) => void;
   onResetFocusMode: () => void;
+  disabled?: boolean;
 }
 
 export function useKeyboardShortcuts({
@@ -33,8 +34,12 @@ export function useKeyboardShortcuts({
   pomodoro,
   moveTask,
   onResetFocusMode,
+  disabled = false,
 }: KeyboardShortcutOptions) {
   useEffect(() => {
+    if (disabled) {
+      return;
+    }
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key;
       const normalizedKey = key.toLowerCase();
@@ -126,6 +131,7 @@ export function useKeyboardShortcuts({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [
+    disabled,
     importTextareaRef,
     moveTask,
     onResetFocusMode,

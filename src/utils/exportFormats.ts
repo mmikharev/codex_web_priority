@@ -1,4 +1,5 @@
 import { Quadrant, Task } from '../types';
+import { getContemplationTagLabel } from './contemplation';
 import { formatDate } from './date';
 
 const QUADRANT_TITLES: Record<Quadrant, string> = {
@@ -12,7 +13,10 @@ const QUADRANT_TITLES: Record<Quadrant, string> = {
 function formatTask(task: Task) {
   const status = task.done ? 'x' : ' ';
   const due = task.due ? ` _(до ${formatDate(task.due)})_` : '';
-  return `- [${status}] ${task.title}${due}`;
+  const tagLabel = getContemplationTagLabel(task.contemplationTag);
+  const tagSuffix = tagLabel ? ` _(тег: ${tagLabel})_` : '';
+  const sourceSuffix = task.capturedViaContemplation ? ' _(созерцание точки)_' : '';
+  return `- [${status}] ${task.title}${due}${tagSuffix}${sourceSuffix}`;
 }
 
 export function createMarkdown(tasks: Task[]): string {
