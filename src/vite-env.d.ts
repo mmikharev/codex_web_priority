@@ -6,8 +6,16 @@ declare module '*.module.css' {
 }
 
 declare module '*.css' {
-	const classes: { readonly [key: string]: string };
-	export default classes;
+        const classes: { readonly [key: string]: string };
+        export default classes;
+}
+
+interface ElectronAPI {
+        getApiBaseUrl(): string | undefined;
+}
+
+declare interface Window {
+        electronAPI?: ElectronAPI;
 }
 
 

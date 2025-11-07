@@ -23,7 +23,25 @@ type TaskUpdateInput = Partial<
   >
 >;
 
+function resolveElectronBaseUrl(): string | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const baseUrl = window.electronAPI?.getApiBaseUrl?.();
+  if (!baseUrl) {
+    return undefined;
+  }
+
+  return String(baseUrl).replace(/\/$/, '');
+}
+
 function resolveDefaultBaseUrl(): string {
+  const electronBaseUrl = resolveElectronBaseUrl();
+  if (electronBaseUrl) {
+    return electronBaseUrl;
+  }
+
   if (import.meta.env.VITE_API_BASE_URL) {
     return String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '');
   }
