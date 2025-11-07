@@ -4,12 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
-
-const PORT = Number(process.env.PORT ?? 4000);
-const DATA_DIR = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'tasks.db');
+import { pathToFileURL } from 'node:url';
 
 const QUADRANTS = new Set(['backlog', 'Q1', 'Q2', 'Q3', 'Q4']);
 const CONTEMPLATION_TAGS = new Set([
@@ -19,11 +14,16 @@ const CONTEMPLATION_TAGS = new Set([
   'mood_neutral',
 ]);
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
+function resolveDataDir(input) {
+  const resolved = input ? path.resolve(input) : path.join(process.cwd(), 'data');
+  fs.mkdirSync(resolved, { recursive: true });
+  return resolved;
+}
 
-const db = new Database(DB_PATH);
-db.pragma('foreign_keys = ON');
-db.exec(`
+function createDatabase(dbPath) {
+  const database = new Database(dbPath);
+  database.pragma('foreign_keys = ON');
+  database.exec(`
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -37,81 +37,302 @@ CREATE TABLE IF NOT EXISTS tasks (
   captured_via_contemplation INTEGER NOT NULL DEFAULT 0
 );
 `);
+  return database;
+}
 
-const selectAll = db.prepare(`
-  SELECT
-    id,
-    title,
-    due,
-    quadrant,
-    done,
-    created_at AS createdAt,
-    completed_at AS completedAt,
-    time_spent_seconds AS timeSpentSeconds,
-    contemplation_tag AS contemplationTag,
-    captured_via_contemplation AS capturedViaContemplation
-  FROM tasks
-`);
+export function createTaskServer(options = {}) {
+  const dataDir = resolveDataDir(options.dataDir ?? process.env.DATA_DIR);
+  const dbPath = path.join(dataDir, 'tasks.db');
+  const db = createDatabase(dbPath);
 
-const selectOne = db.prepare(`
-  SELECT
-    id,
-    title,
-    due,
-    quadrant,
-    done,
-    created_at AS createdAt,
-    completed_at AS completedAt,
-    time_spent_seconds AS timeSpentSeconds,
-    contemplation_tag AS contemplationTag,
-    captured_via_contemplation AS capturedViaContemplation
-  FROM tasks
-  WHERE id = ?
-`);
+  const selectAll = db.prepare(`
+    SELECT
+      id,
+      title,
+      due,
+      quadrant,
+      done,
+      created_at AS createdAt,
+      completed_at AS completedAt,
+      time_spent_seconds AS timeSpentSeconds,
+      contemplation_tag AS contemplationTag,
+      captured_via_contemplation AS capturedViaContemplation
+    FROM tasks
+  `);
 
-const insertTask = db.prepare(`
-  INSERT INTO tasks (
-    id,
-    title,
-    due,
-    quadrant,
-    done,
-    created_at,
-    completed_at,
-    time_spent_seconds,
-    contemplation_tag,
-    captured_via_contemplation
-  ) VALUES (
-    @id,
-    @title,
-    @due,
-    @quadrant,
-    @done,
-    @createdAt,
-    @completedAt,
-    @timeSpentSeconds,
-    @contemplationTag,
-    @capturedViaContemplation
-  )
-`);
+  const selectOne = db.prepare(`
+    SELECT
+      id,
+      title,
+      due,
+      quadrant,
+      done,
+      created_at AS createdAt,
+      completed_at AS completedAt,
+      time_spent_seconds AS timeSpentSeconds,
+      contemplation_tag AS contemplationTag,
+      captured_via_contemplation AS capturedViaContemplation
+    FROM tasks
+    WHERE id = ?
+  `);
 
-const updateTaskStmt = db.prepare(`
-  UPDATE tasks SET
-    title = @title,
-    due = @due,
-    quadrant = @quadrant,
-    done = @done,
-    created_at = @createdAt,
-    completed_at = @completedAt,
-    time_spent_seconds = @timeSpentSeconds,
-    contemplation_tag = @contemplationTag,
-    captured_via_contemplation = @capturedViaContemplation
-  WHERE id = @id
-`);
+  const insertTask = db.prepare(`
+    INSERT INTO tasks (
+      id,
+      title,
+      due,
+      quadrant,
+      done,
+      created_at,
+      completed_at,
+      time_spent_seconds,
+      contemplation_tag,
+      captured_via_contemplation
+    ) VALUES (
+      @id,
+      @title,
+      @due,
+      @quadrant,
+      @done,
+      @createdAt,
+      @completedAt,
+      @timeSpentSeconds,
+      @contemplationTag,
+      @capturedViaContemplation
+    )
+  `);
 
-const deleteTaskStmt = db.prepare('DELETE FROM tasks WHERE id = ?');
+  const updateTaskStmt = db.prepare(`
+    UPDATE tasks SET
+      title = @title,
+      due = @due,
+      quadrant = @quadrant,
+      done = @done,
+      created_at = @createdAt,
+      completed_at = @completedAt,
+      time_spent_seconds = @timeSpentSeconds,
+      contemplation_tag = @contemplationTag,
+      captured_via_contemplation = @capturedViaContemplation
+    WHERE id = @id
+  `);
 
-const clearTasksStmt = db.prepare('DELETE FROM tasks');
+  const deleteTaskStmt = db.prepare('DELETE FROM tasks WHERE id = ?');
+
+  const clearTasksStmt = db.prepare('DELETE FROM tasks');
+
+  const app = express();
+  app.use(cors());
+  app.use(express.json({ limit: '2mb' }));
+
+  function getAllTasks() {
+    return selectAll.all().map(rowToTask);
+  }
+
+  app.get('/api/tasks', (_req, res) => {
+    res.json({ tasks: getAllTasks() });
+  });
+
+  app.post('/api/tasks', (req, res) => {
+    try {
+      const payload = validateTaskPayload(req.body);
+      insertTask.run({
+        ...payload,
+        done: payload.done ? 1 : 0,
+        contemplationTag: payload.contemplationTag,
+        capturedViaContemplation: payload.capturedViaContemplation ? 1 : 0,
+      });
+      const created = selectOne.get(payload.id);
+      res.status(201).json({ task: rowToTask(created) });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Некорректный запрос' });
+    }
+  });
+
+  app.get('/api/tasks/:id', (req, res) => {
+    const row = selectOne.get(req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'Задача не найдена' });
+      return;
+    }
+    res.json({ task: rowToTask(row) });
+  });
+
+  app.patch('/api/tasks/:id', (req, res) => {
+    const existing = selectOne.get(req.params.id);
+    if (!existing) {
+      res.status(404).json({ error: 'Задача не найдена' });
+      return;
+    }
+
+    try {
+      const payload = req.body ?? {};
+      const title =
+        typeof payload.title === 'string' && payload.title.trim().length > 0
+          ? payload.title.trim()
+          : existing.title;
+
+      const due = Object.prototype.hasOwnProperty.call(payload, 'due')
+        ? normalizeNullableString(payload.due)
+        : normalizeNullableString(existing.due);
+
+      const quadrant = Object.prototype.hasOwnProperty.call(payload, 'quadrant')
+        ? normalizeQuadrant(payload.quadrant, existing.quadrant)
+        : normalizeQuadrant(existing.quadrant);
+
+      const done = normalizeBoolean(
+        Object.prototype.hasOwnProperty.call(payload, 'done') ? payload.done : existing.done,
+        Boolean(existing.done),
+      );
+
+      const createdAt = ensureIsoString(
+        Object.prototype.hasOwnProperty.call(payload, 'createdAt') ? payload.createdAt : existing.createdAt,
+        existing.createdAt,
+      );
+
+      let completedAt = existing.completedAt;
+      if (Object.prototype.hasOwnProperty.call(payload, 'completedAt')) {
+        completedAt = payload.completedAt ? ensureIsoString(payload.completedAt, existing.completedAt) : null;
+      } else if (done && !existing.done) {
+        completedAt = new Date().toISOString();
+      } else if (!done) {
+        completedAt = null;
+      }
+
+      const timeSpentSeconds = normalizeTimeSpent(
+        Object.prototype.hasOwnProperty.call(payload, 'timeSpentSeconds')
+          ? payload.timeSpentSeconds
+          : existing.timeSpentSeconds,
+        existing.timeSpentSeconds,
+      );
+
+      const contemplationTag = Object.prototype.hasOwnProperty.call(payload, 'contemplationTag')
+        ? normalizeTag(payload.contemplationTag)
+        : normalizeTag(existing.contemplationTag);
+
+      const capturedViaContemplation = normalizeBoolean(
+        Object.prototype.hasOwnProperty.call(payload, 'capturedViaContemplation')
+          ? payload.capturedViaContemplation
+          : existing.capturedViaContemplation,
+        Boolean(existing.capturedViaContemplation),
+      );
+
+      updateTaskStmt.run({
+        id: req.params.id,
+        title,
+        due,
+        quadrant,
+        done: done ? 1 : 0,
+        createdAt,
+        completedAt,
+        timeSpentSeconds,
+        contemplationTag,
+        capturedViaContemplation: capturedViaContemplation ? 1 : 0,
+      });
+
+      const updated = selectOne.get(req.params.id);
+      res.json({ task: rowToTask(updated) });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Некорректный запрос' });
+    }
+  });
+
+  app.delete('/api/tasks/:id', (req, res) => {
+    const { changes } = deleteTaskStmt.run(req.params.id);
+    if (changes === 0) {
+      res.status(404).json({ error: 'Задача не найдена' });
+      return;
+    }
+    res.status(204).end();
+  });
+
+  app.put('/api/tasks', (req, res) => {
+    const payload = req.body;
+    if (!payload || typeof payload !== 'object' || !payload.tasks || typeof payload.tasks !== 'object') {
+      res.status(400).json({ error: 'Ожидается объект вида { tasks: Record<string, Task> }' });
+      return;
+    }
+
+    const entries = Object.entries(payload.tasks);
+    try {
+      const tasks = entries.map(([key, descriptor]) =>
+        validateTaskPayload({ ...(descriptor ?? {}), id: key }, { allowId: true }),
+      );
+      const run = db.transaction((list) => {
+        clearTasksStmt.run();
+        for (const task of list) {
+          insertTask.run({
+            id: task.id,
+            title: task.title,
+            due: task.due,
+            quadrant: task.quadrant,
+            done: task.done ? 1 : 0,
+            createdAt: task.createdAt,
+            completedAt: task.completedAt,
+            timeSpentSeconds: task.timeSpentSeconds,
+            contemplationTag: task.contemplationTag,
+            capturedViaContemplation: task.capturedViaContemplation ? 1 : 0,
+          });
+        }
+      });
+      run(tasks);
+      res.json({ tasks: getAllTasks() });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Некорректный запрос' });
+    }
+  });
+
+  app.delete('/api/tasks', (_req, res) => {
+    clearTasksStmt.run();
+    res.status(204).end();
+  });
+
+  const distDir = path.join(process.cwd(), 'dist');
+  if (fs.existsSync(distDir)) {
+    app.use(express.static(distDir));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(distDir, 'index.html'));
+    });
+  }
+
+  return {
+    app,
+    db,
+    dataDir,
+    dbPath,
+    getAllTasks,
+  };
+}
+
+export function startTaskServer(options = {}) {
+  const { app, db, dataDir, dbPath } = createTaskServer(options);
+  const requestedPort = options.port ?? (process.env.PORT ? Number(process.env.PORT) : 4000);
+
+  return new Promise((resolve, reject) => {
+    const server = app.listen(requestedPort, () => {
+      const address = server.address();
+      const port = typeof address === 'object' && address ? address.port : requestedPort;
+      console.log(`SQLite task API listening on http://localhost:${port}`);
+      console.log(`Using database at ${dbPath}`);
+      resolve({ app, server, port, dataDir, dbPath });
+    });
+
+    server.on('error', (error) => {
+      reject(error);
+    });
+
+    server.on('close', () => {
+      db.close();
+    });
+  });
+}
+
+const executedFile = process.argv[1] ? pathToFileURL(process.argv[1]).href : undefined;
+if (executedFile && import.meta.url === executedFile) {
+  startTaskServer().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
 
 function normalizeString(input) {
   if (typeof input !== 'string') {
@@ -188,19 +409,6 @@ function rowToTask(row) {
   };
 }
 
-function mapToTaskRecord(rows) {
-  const record = {};
-  for (const row of rows) {
-    const task = rowToTask(row);
-    record[task.id] = task;
-  }
-  return record;
-}
-
-function getAllTasks() {
-  return mapToTaskRecord(selectAll.all());
-}
-
 function validateTaskPayload(payload, options = {}) {
   const { allowId = false } = options;
   if (!payload || typeof payload !== 'object') {
@@ -244,182 +452,3 @@ function validateTaskPayload(payload, options = {}) {
     capturedViaContemplation,
   };
 }
-
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '2mb' }));
-
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
-
-app.get('/api/tasks', (_req, res) => {
-  res.json({ tasks: getAllTasks() });
-});
-
-app.post('/api/tasks', (req, res) => {
-  try {
-    const task = validateTaskPayload(req.body ?? {}, { allowId: true });
-    insertTask.run({
-      id: task.id,
-      title: task.title,
-      due: task.due,
-      quadrant: task.quadrant,
-      done: task.done ? 1 : 0,
-      createdAt: task.createdAt,
-      completedAt: task.completedAt,
-      timeSpentSeconds: task.timeSpentSeconds,
-      contemplationTag: task.contemplationTag,
-      capturedViaContemplation: task.capturedViaContemplation ? 1 : 0,
-    });
-    const inserted = selectOne.get(task.id);
-    res.status(201).json({ task: rowToTask(inserted) });
-  } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Некорректный запрос' });
-  }
-});
-
-app.patch('/api/tasks/:id', (req, res) => {
-  const { id } = req.params;
-  const existing = selectOne.get(id);
-  if (!existing) {
-    res.status(404).json({ error: 'Задача не найдена' });
-    return;
-  }
-
-  try {
-    const payload = req.body ?? {};
-    const title =
-      typeof payload.title === 'string' && payload.title.trim().length > 0
-        ? payload.title.trim()
-        : existing.title;
-    const due = normalizeNullableString(
-      Object.prototype.hasOwnProperty.call(payload, 'due') ? payload.due : existing.due,
-    );
-    const quadrant = normalizeQuadrant(
-      Object.prototype.hasOwnProperty.call(payload, 'quadrant') ? payload.quadrant : existing.quadrant,
-      existing.quadrant,
-    );
-    if (!QUADRANTS.has(quadrant)) {
-      throw new Error('Некорректный квадрант');
-    }
-
-    const done = normalizeBoolean(
-      Object.prototype.hasOwnProperty.call(payload, 'done') ? payload.done : existing.done,
-      Boolean(existing.done),
-    );
-
-    const createdAt = ensureIsoString(
-      Object.prototype.hasOwnProperty.call(payload, 'createdAt') ? payload.createdAt : existing.createdAt,
-      existing.createdAt,
-    );
-
-    let completedAt = existing.completedAt;
-    if (Object.prototype.hasOwnProperty.call(payload, 'completedAt')) {
-      completedAt = payload.completedAt ? ensureIsoString(payload.completedAt, existing.completedAt) : null;
-    } else if (done && !existing.done) {
-      completedAt = new Date().toISOString();
-    } else if (!done) {
-      completedAt = null;
-    }
-
-    const timeSpentSeconds = normalizeTimeSpent(
-      Object.prototype.hasOwnProperty.call(payload, 'timeSpentSeconds')
-        ? payload.timeSpentSeconds
-        : existing.timeSpentSeconds,
-      existing.timeSpentSeconds,
-    );
-
-    const contemplationTag = Object.prototype.hasOwnProperty.call(payload, 'contemplationTag')
-      ? normalizeTag(payload.contemplationTag)
-      : normalizeTag(existing.contemplationTag);
-
-    const capturedViaContemplation = normalizeBoolean(
-      Object.prototype.hasOwnProperty.call(payload, 'capturedViaContemplation')
-        ? payload.capturedViaContemplation
-        : existing.capturedViaContemplation,
-      Boolean(existing.capturedViaContemplation),
-    );
-
-    updateTaskStmt.run({
-      id,
-      title,
-      due,
-      quadrant,
-      done: done ? 1 : 0,
-      createdAt,
-      completedAt,
-      timeSpentSeconds,
-      contemplationTag,
-      capturedViaContemplation: capturedViaContemplation ? 1 : 0,
-    });
-
-    const updated = selectOne.get(id);
-    res.json({ task: rowToTask(updated) });
-  } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Некорректный запрос' });
-  }
-});
-
-app.delete('/api/tasks/:id', (req, res) => {
-  const { changes } = deleteTaskStmt.run(req.params.id);
-  if (changes === 0) {
-    res.status(404).json({ error: 'Задача не найдена' });
-    return;
-  }
-  res.status(204).end();
-});
-
-app.put('/api/tasks', (req, res) => {
-  const payload = req.body;
-  if (!payload || typeof payload !== 'object' || !payload.tasks || typeof payload.tasks !== 'object') {
-    res.status(400).json({ error: 'Ожидается объект вида { tasks: Record<string, Task> }' });
-    return;
-  }
-
-  const entries = Object.entries(payload.tasks);
-  try {
-    const tasks = entries.map(([key, descriptor]) =>
-      validateTaskPayload({ ...(descriptor ?? {}), id: key }, { allowId: true }),
-    );
-    const run = db.transaction((list) => {
-      clearTasksStmt.run();
-      for (const task of list) {
-        insertTask.run({
-          id: task.id,
-          title: task.title,
-          due: task.due,
-          quadrant: task.quadrant,
-          done: task.done ? 1 : 0,
-          createdAt: task.createdAt,
-          completedAt: task.completedAt,
-          timeSpentSeconds: task.timeSpentSeconds,
-          contemplationTag: task.contemplationTag,
-          capturedViaContemplation: task.capturedViaContemplation ? 1 : 0,
-        });
-      }
-    });
-    run(tasks);
-    res.json({ tasks: getAllTasks() });
-  } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Некорректный запрос' });
-  }
-});
-
-app.delete('/api/tasks', (_req, res) => {
-  clearTasksStmt.run();
-  res.status(204).end();
-});
-
-const distDir = path.join(process.cwd(), 'dist');
-if (fs.existsSync(distDir)) {
-  app.use(express.static(distDir));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(distDir, 'index.html'));
-  });
-}
-
-app.listen(PORT, () => {
-  console.log(`SQLite task API listening on http://localhost:${PORT}`);
-  console.log(`Using database at ${DB_PATH}`);
-});

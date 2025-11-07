@@ -3,6 +3,11 @@ node_modules
 
 # Builds
 dist
+release/
+electron/out/
+*.asar
+*.dmg
+*.exe
 
 # Environment / runtime files
 .DS_Store
