@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from './App.module.css';
 import { AddTaskButton } from './components/AddTaskButton';
+import { ContemplationSession } from './components/ContemplationSession';
 import { BacklogList } from './components/BacklogList';
 import { ImportPanel } from './components/ImportPanel';
 import { ManualTaskForm } from './components/ManualTaskForm';
@@ -15,7 +16,7 @@ import { usePomodoroTimer } from './hooks/usePomodoroTimer';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTaskStore } from './hooks/useTaskStore';
 import { useThemePreference } from './hooks/useThemePreference';
-import { Quadrant, Task } from './types';
+import { ContemplationTag, Quadrant, Task } from './types';
 import { createExportPayload } from './utils/export';
 import { createMarkdown, createPrintableHtml } from './utils/exportFormats';
 import { sortTasks } from './utils/taskSort';
@@ -113,6 +114,8 @@ export default function App() {
   const [manualFormFocusToken, setManualFormFocusToken] = useState(0);
   const [isTaskModalOpen, setTaskModalOpen] = useState(false);
   const [focusModeEnabled, setFocusModeEnabled] = useState(false);
+  const [contemplationOpen, setContemplationOpen] = useState(false);
+  const [contemplationDuration, setContemplationDuration] = useState(5);
   const [taskModalTab, setTaskModalTab] = useState<'quick' | 'import'>('quick');
 
   const [collapseState, setCollapseState] = useState<CollapseState>(() => ({
@@ -184,10 +187,10 @@ export default function App() {
   );
 
   const handleImport = useCallback(
-    (jsonText: string, options: { resetQuadrants: boolean }) => {
+    async (jsonText: string, options: { resetQuadrants: boolean }) => {
       setImportError(null);
       try {
-        const summary = importTasks(jsonText, options);
+        const summary = await importTasks(jsonText, options);
         setImportFeedback(
           summary.total === 0
             ? 'Импорт завершён: новых задач нет'
@@ -217,14 +220,14 @@ export default function App() {
   );
 
   const handleUpdateTask = useCallback(
-    (taskId: string, updates: { title?: string; due?: string | null; done?: boolean }) => {
+    (taskId: string, updates: { title?: string; due?: string | null; done?: boolean; contemplationTag?: ContemplationTag | null }) => {
       updateTask(taskId, updates);
     },
     [updateTask],
   );
 
   const handleCreateTask = useCallback(
-    (payload: { title: string; due: string | null; quadrant: Quadrant }) => {
+    (payload: { title: string; due: string | null; quadrant: Quadrant; contemplationTag?: ContemplationTag | null; capturedViaContemplation?: boolean }) => {
       addTask(payload);
     },
     [addTask],
@@ -325,6 +328,31 @@ export default function App() {
     openTaskModal({ tab: 'import' });
   }, [openTaskModal]);
 
+  const handleOpenContemplation = useCallback(() => {
+    setContemplationOpen(true);
+  }, []);
+
+  const handleCloseContemplation = useCallback(() => {
+    setContemplationOpen(false);
+  }, []);
+
+  const handleContemplationDurationChange = useCallback((minutes: number) => {
+    setContemplationDuration(minutes);
+  }, []);
+
+  const handleContemplationCapture = useCallback(
+    (payload: { title: string; tag?: ContemplationTag | null }) => {
+      addTask({
+        title: payload.title,
+        due: null,
+        quadrant: 'backlog',
+        contemplationTag: payload.tag ?? null,
+        capturedViaContemplation: true,
+      });
+    },
+    [addTask],
+  );
+
   const handleToggleBacklogCollapse = useCallback(() => {
     setCollapseState((previous) => ({
       backlog: !previous.backlog,
@@ -414,6 +442,7 @@ export default function App() {
     },
     moveTask,
     onResetFocusMode: handleResetFocusMode,
+    disabled: contemplationOpen,
   });
 
   useEffect(() => {
@@ -423,6 +452,20 @@ export default function App() {
     setImportFeedback(null);
     setImportError(null);
   }, [importText]);
+
+  useEffect(() => {
+    if (!contemplationOpen) {
+      return;
+    }
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [contemplationOpen]);
 
   useEffect(() => {
     if (pomodoro.runState === 'stopped') {
@@ -478,30 +521,52 @@ export default function App() {
 
   return (
     <div className={styles.app}>
-      {loadError ? (
+      <ContemplationSession
+        open={contemplationOpen}
+        durationMinutes={contemplationDuration}
+        onDurationChange={handleContemplationDurationChange}
+        onClose={handleCloseContemplation}
+        onCreateTask={handleContemplationCapture}
+      />
+
+      <div
+        className={`${styles.appContent} ${contemplationOpen ? styles.appContentBlurred : ''}`.trim()}
+        aria-hidden={contemplationOpen ? 'true' : 'false'}
+      >
+        {loadError ? (
         <div className={styles.alert}>
           <div>Не удалось загрузить сохранённое состояние: {loadError.message}</div>
           <button type="button" onClick={clearCorruptedState}>
             Сбросить состояние
           </button>
         </div>
-      ) : null}
+        ) : null}
 
-      <header className={styles.header}>
-        <PriorityOverview quadrants={quadrants} onSelect={handleSelectQuadrant} />
-        <div className={styles.toolbar}>
-          <SearchBar
-            value={searchQuery}
-            expanded={searchExpanded || !!searchQuery}
-            onChange={setSearchQuery}
-            onClear={handleClearFilter}
-            onToggle={setSearchExpanded}
-            inputRef={searchInputRef}
-          />
-          <AddTaskButton onClick={() => openTaskModal({ tab: 'quick' })} />
-          <ThemeToggleButton theme={theme} onToggle={toggleTheme} />
-        </div>
-      </header>
+        <header className={styles.header}>
+          <PriorityOverview quadrants={quadrants} onSelect={handleSelectQuadrant} />
+          <div className={styles.toolbar}>
+            <SearchBar
+              value={searchQuery}
+              expanded={searchExpanded || !!searchQuery}
+              onChange={setSearchQuery}
+              onClear={handleClearFilter}
+              onToggle={setSearchExpanded}
+              inputRef={searchInputRef}
+            />
+            <button
+              type="button"
+              className={`${styles.contemplationButton} ${
+                contemplationOpen ? styles.contemplationButtonActive : ''
+              }`.trim()}
+              onClick={handleOpenContemplation}
+              disabled={contemplationOpen}
+            >
+              Созерцание точки
+            </button>
+            <AddTaskButton onClick={() => openTaskModal({ tab: 'quick' })} />
+            <ThemeToggleButton theme={theme} onToggle={toggleTheme} />
+          </div>
+        </header>
 
       <PomodoroBar
         activeTask={activeTask ?? null}
@@ -646,6 +711,7 @@ export default function App() {
           )}
         </div>
       </Modal>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,14 @@
+# Dependencies
+node_modules
+
+# Builds
+dist
+
+# Environment / runtime files
+.DS_Store
+data/
+
+# Test artifacts
+playwright-report
+test-results
+

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Quadrant, Task, TaskMap } from '../types';
-import { clearState, loadState, scheduleSave } from '../utils/storage';
+import { ContemplationTag, Quadrant, Task, TaskMap } from '../types';
 import { sortTasks } from '../utils/taskSort';
+import {
+  clearTasks as apiClearTasks,
+  createTask as apiCreateTask,
+  deleteTask as apiDeleteTask,
+  fetchTasks as apiFetchTasks,
+  replaceAllTasks as apiReplaceAllTasks,
+  updateTask as apiUpdateTask,
+} from '../utils/taskApi';
 
 interface ImportOptions {
   resetQuadrants?: boolean;
@@ -61,6 +68,8 @@ function finalizeTask(input: {
   createdAt?: string;
   completedAt?: string | null;
   timeSpentSeconds?: number;
+  contemplationTag?: ContemplationTag | null;
+  capturedViaContemplation?: boolean;
 }): Task {
   const createdAt = typeof input.createdAt === 'string' ? input.createdAt : new Date().toISOString();
   const completedAt = typeof input.completedAt === 'string' ? input.completedAt : null;
@@ -75,11 +84,22 @@ function finalizeTask(input: {
     createdAt,
     completedAt,
     timeSpentSeconds,
+    contemplationTag: input.contemplationTag ?? null,
+    capturedViaContemplation: input.capturedViaContemplation ?? false,
   };
 }
 
 function isQuadrant(value: unknown): value is Quadrant {
   return value === 'backlog' || value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4';
+}
+
+function isContemplationTag(value: unknown): value is ContemplationTag {
+  return (
+    value === 'energy_high' ||
+    value === 'energy_gentle' ||
+    value === 'mood_pleasant' ||
+    value === 'mood_neutral'
+  );
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -93,27 +113,16 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return Object.values(value).every((item) => typeof item === 'string');
 }
 
-function generateTaskId(existing: TaskMap): string {
+function createTaskId(): string {
   const globalCrypto =
     typeof globalThis !== 'undefined'
       ? (globalThis.crypto as { randomUUID?: () => string } | undefined)
       : undefined;
-
   if (globalCrypto?.randomUUID) {
-    let candidate = globalCrypto.randomUUID();
-    while (existing[candidate]) {
-      candidate = globalCrypto.randomUUID();
-    }
-    return candidate;
+    return globalCrypto.randomUUID();
   }
-
-  let attempt = 0;
-  let candidate = `task-${Date.now()}`;
-  while (existing[candidate]) {
-    attempt += 1;
-    candidate = `task-${Date.now()}-${attempt}`;
-  }
-  return candidate;
+  const random = Math.floor(Math.random() * 1_000_000);
+  return `task-${Date.now()}-${random}`;
 }
 
 function isExportPayload(
@@ -129,6 +138,8 @@ function isExportPayload(
       createdAt?: string;
       completedAt?: string | null;
       timeSpentSeconds?: number;
+      contemplationTag?: ContemplationTag | null;
+      capturedViaContemplation?: boolean;
     }
   >;
 } {
@@ -142,16 +153,44 @@ function isExportPayload(
 }
 
 export function useTaskStore() {
-  const loadRef = useRef(loadState());
-  const [tasks, setTasks] = useState<TaskMap>(loadRef.current.tasks);
-  const [loadError, setLoadError] = useState<Error | undefined>(loadRef.current.error);
+  const [tasks, setTasks] = useState<TaskMap>({});
+  const [loadError, setLoadError] = useState<Error | undefined>(undefined);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    scheduleSave(tasks);
-  }, [tasks]);
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const remoteTasks = await apiFetchTasks();
+        if (cancelled || !isMountedRef.current) {
+          return;
+        }
+        setTasks(remoteTasks);
+        setLoadError(undefined);
+      } catch (error) {
+        console.error('Не удалось загрузить задачи из базы данных', error);
+        if (cancelled || !isMountedRef.current) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
+        setLoadError(new Error(`Не удалось подключиться к базе задач (${message})`));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const importTasks = useCallback(
-    (rawJson: string, options: ImportOptions = {}): ImportSummary => {
+    async (rawJson: string, options: ImportOptions = {}): Promise<ImportSummary> => {
       const { resetQuadrants = false } = options;
 
       let payload: unknown;
@@ -178,6 +217,8 @@ export function useTaskStore() {
               createdAt: task.createdAt,
               completedAt: task.completedAt,
               timeSpentSeconds: task.timeSpentSeconds,
+              contemplationTag: task.contemplationTag ?? null,
+              capturedViaContemplation: task.capturedViaContemplation ?? false,
             });
           });
         } else {
@@ -191,6 +232,8 @@ export function useTaskStore() {
               createdAt: task.createdAt,
               completedAt: task.completedAt,
               timeSpentSeconds: task.timeSpentSeconds,
+              contemplationTag: task.contemplationTag ?? null,
+              capturedViaContemplation: task.capturedViaContemplation ?? false,
             });
           });
         }
@@ -235,6 +278,13 @@ export function useTaskStore() {
             typeof descriptor.timeSpentSeconds === 'number' && Number.isFinite(descriptor.timeSpentSeconds)
               ? Math.max(0, descriptor.timeSpentSeconds)
               : current?.timeSpentSeconds;
+          const normalizedTag = isContemplationTag((descriptor as { contemplationTag?: unknown }).contemplationTag)
+            ? ((descriptor as { contemplationTag?: unknown }).contemplationTag as ContemplationTag)
+            : current?.contemplationTag ?? null;
+          const normalizedCaptured =
+            typeof (descriptor as { capturedViaContemplation?: unknown }).capturedViaContemplation === 'boolean'
+              ? Boolean((descriptor as { capturedViaContemplation?: unknown }).capturedViaContemplation)
+              : current?.capturedViaContemplation ?? false;
 
           if (base[id]) {
             updated += 1;
@@ -251,6 +301,8 @@ export function useTaskStore() {
             createdAt: normalizedCreatedAt ?? current?.createdAt,
             completedAt: normalizedDone ? normalizedCompletedAt : null,
             timeSpentSeconds: normalizedTimeSpent,
+            contemplationTag: normalizedTag,
+            capturedViaContemplation: normalizedCaptured,
           });
         }
 
@@ -282,6 +334,8 @@ export function useTaskStore() {
                   createdAt: current.createdAt,
                   completedAt: current.completedAt,
                   timeSpentSeconds: current.timeSpentSeconds,
+                  contemplationTag: current.contemplationTag ?? null,
+                  capturedViaContemplation: current.capturedViaContemplation ?? false,
                 });
                 updated += 1;
               } else {
@@ -291,6 +345,8 @@ export function useTaskStore() {
                   due,
                   quadrant: quadrantKey,
                   done: false,
+                  contemplationTag: null,
+                  capturedViaContemplation: false,
                 });
                 added += 1;
               }
@@ -318,6 +374,8 @@ export function useTaskStore() {
                 createdAt: current.createdAt,
                 completedAt: current.completedAt,
                 timeSpentSeconds: current.timeSpentSeconds,
+                contemplationTag: current.contemplationTag ?? null,
+                capturedViaContemplation: current.capturedViaContemplation ?? false,
               });
               updated += 1;
             } else {
@@ -327,6 +385,8 @@ export function useTaskStore() {
                 due,
                 quadrant: 'backlog',
                 done: false,
+                contemplationTag: null,
+                capturedViaContemplation: false,
               });
               added += 1;
             }
@@ -337,97 +397,228 @@ export function useTaskStore() {
       }
 
       if (nextTasks) {
-        setTasks(nextTasks);
+        const remoteTasks = await apiReplaceAllTasks(nextTasks);
+        if (isMountedRef.current) {
+          setTasks(remoteTasks);
+          setLoadError(undefined);
+        }
       }
 
       return { added, updated, total: added + updated };
     },
     [tasks],
   );
-  const moveTask = useCallback((taskId: string, quadrant: Quadrant) => {
-    setTasks((prev) => {
-      const current = prev[taskId];
-      if (!current || current.quadrant === quadrant) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [taskId]: { ...current, quadrant },
-      };
-    });
-  }, []);
+  const moveTask = useCallback(
+    (taskId: string, quadrant: Quadrant) => {
+      setTasks((prev) => {
+        const current = prev[taskId];
+        if (!current || current.quadrant === quadrant) {
+          return prev;
+        }
 
-  const updateTask = useCallback((taskId: string, updates: Partial<Pick<Task, 'title' | 'due' | 'done' | 'timeSpentSeconds'>>) => {
-    setTasks((prev) => {
-      const current = prev[taskId];
-      if (!current) {
-        return prev;
-      }
-      const nextDone = updates.done !== undefined ? updates.done : current.done ?? false;
-      const completedAt =
-        updates.done !== undefined
-          ? updates.done
-            ? new Date().toISOString()
-            : null
-          : current.completedAt ?? null;
-      const createdAt = current.createdAt ?? new Date().toISOString();
-      const nextTimeSpent =
-        updates.timeSpentSeconds !== undefined
-          ? Math.max(0, updates.timeSpentSeconds)
-          : typeof current.timeSpentSeconds === 'number'
-          ? current.timeSpentSeconds
-          : 0;
-      const autoTimeSpent =
-        updates.done && !current.done && completedAt
-          ? Math.max(0, new Date(completedAt).getTime() - new Date(createdAt).getTime()) / 1000
-          : nextTimeSpent;
-      const finalTimeSpent = Math.max(nextTimeSpent, autoTimeSpent);
-      const next: Task = {
-        ...current,
-        ...updates,
-        due: updates.due !== undefined ? normalizeDue(updates.due) : current.due,
-        done: nextDone,
-        createdAt,
-        completedAt,
-        timeSpentSeconds: finalTimeSpent,
-      };
-      return {
-        ...prev,
-        [taskId]: next,
-      };
-    });
-  }, []);
+        const optimistic: Task = { ...current, quadrant };
 
-  const addTask = useCallback((task: { title: string; due: string | null; quadrant: Quadrant }) => {
-    setTasks((prev) => {
+        (async () => {
+          try {
+            const updated = await apiUpdateTask(taskId, { quadrant });
+            if (!isMountedRef.current) {
+              return;
+            }
+            setTasks((latest) => ({
+              ...latest,
+              [taskId]: updated,
+            }));
+          } catch (error) {
+            console.error('Не удалось изменить квадрант задачи', error);
+            if (!isMountedRef.current) {
+              return;
+            }
+            setTasks((latest) => ({
+              ...latest,
+              [taskId]: current,
+            }));
+          }
+        })();
+
+        return {
+          ...prev,
+          [taskId]: optimistic,
+        };
+      });
+    },
+    [],
+  );
+
+  const updateTask = useCallback(
+    (
+      taskId: string,
+      updates: Partial<Pick<Task, 'title' | 'due' | 'done' | 'timeSpentSeconds' | 'contemplationTag'>>,
+    ) => {
+      setTasks((prev) => {
+        const current = prev[taskId];
+        if (!current) {
+          return prev;
+        }
+        const nextDone = updates.done !== undefined ? updates.done : current.done ?? false;
+        const completedAt =
+          updates.done !== undefined
+            ? updates.done
+              ? new Date().toISOString()
+              : null
+            : current.completedAt ?? null;
+        const createdAt = current.createdAt ?? new Date().toISOString();
+        const nextTimeSpent =
+          updates.timeSpentSeconds !== undefined
+            ? Math.max(0, updates.timeSpentSeconds)
+            : typeof current.timeSpentSeconds === 'number'
+            ? current.timeSpentSeconds
+            : 0;
+        const autoTimeSpent =
+          updates.done && !current.done && completedAt
+            ? Math.max(0, new Date(completedAt).getTime() - new Date(createdAt).getTime()) / 1000
+            : nextTimeSpent;
+        const finalTimeSpent = Math.max(nextTimeSpent, autoTimeSpent);
+        const next: Task = {
+          ...current,
+          ...updates,
+          due: updates.due !== undefined ? normalizeDue(updates.due) : current.due,
+          done: nextDone,
+          createdAt,
+          completedAt,
+          timeSpentSeconds: finalTimeSpent,
+          contemplationTag:
+            updates.contemplationTag !== undefined ? updates.contemplationTag : current.contemplationTag ?? null,
+        };
+
+        (async () => {
+          try {
+            const payload = {
+              title: next.title,
+              due: next.due ?? null,
+              quadrant: next.quadrant,
+              done: next.done ?? false,
+              completedAt: next.completedAt ?? null,
+              timeSpentSeconds: next.timeSpentSeconds ?? 0,
+              contemplationTag: next.contemplationTag ?? null,
+              capturedViaContemplation: next.capturedViaContemplation ?? false,
+            };
+            const updated = await apiUpdateTask(taskId, payload);
+            if (!isMountedRef.current) {
+              return;
+            }
+            setTasks((latest) => ({
+              ...latest,
+              [taskId]: updated,
+            }));
+          } catch (error) {
+            console.error('Не удалось обновить задачу', error);
+            if (!isMountedRef.current) {
+              return;
+            }
+            setTasks((latest) => ({
+              ...latest,
+              [taskId]: current,
+            }));
+          }
+        })();
+
+        return {
+          ...prev,
+          [taskId]: next,
+        };
+      });
+    },
+    [],
+  );
+
+  const addTask = useCallback(
+    (task: {
+      title: string;
+      due: string | null;
+      quadrant: Quadrant;
+      contemplationTag?: ContemplationTag | null;
+      capturedViaContemplation?: boolean;
+    }) => {
       const normalizedTitle = task.title.trim() || 'Новая задача';
       const normalizedQuadrant = isQuadrant(task.quadrant) ? task.quadrant : 'backlog';
       const normalizedDue = normalizeDue(task.due);
-      const id = generateTaskId(prev);
-
-      return {
-        ...prev,
-        [id]: {
-          id,
-          title: normalizedTitle,
-          due: normalizedDue,
-          quadrant: normalizedQuadrant,
-          done: false,
-          createdAt: new Date().toISOString(),
-          completedAt: null,
-          timeSpentSeconds: 0,
-        },
+      const id = createTaskId();
+      const optimistic: Task = {
+        id,
+        title: normalizedTitle,
+        due: normalizedDue,
+        quadrant: normalizedQuadrant,
+        done: false,
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+        timeSpentSeconds: 0,
+        contemplationTag: task.contemplationTag ?? null,
+        capturedViaContemplation: task.capturedViaContemplation ?? false,
       };
-    });
-  }, []);
+
+      setTasks((prev) => ({
+        ...prev,
+        [id]: optimistic,
+      }));
+
+      (async () => {
+        try {
+          const created = await apiCreateTask({
+            id,
+            title: normalizedTitle,
+            due: normalizedDue,
+            quadrant: normalizedQuadrant,
+            contemplationTag: task.contemplationTag ?? null,
+            capturedViaContemplation: task.capturedViaContemplation ?? false,
+          });
+          if (!isMountedRef.current) {
+            return;
+          }
+          setTasks((prev) => ({
+            ...prev,
+            [created.id]: { ...optimistic, ...created },
+          }));
+          setLoadError(undefined);
+        } catch (error) {
+          console.error('Не удалось создать задачу', error);
+          if (!isMountedRef.current) {
+            return;
+          }
+          setLoadError(
+            error instanceof Error
+              ? error
+              : new Error('Не удалось сохранить задачу. Проверьте, запущен ли сервер базы данных.'),
+          );
+        }
+      })();
+    },
+    [],
+  );
 
   const deleteTask = useCallback((taskId: string) => {
     setTasks((prev) => {
-      if (!prev[taskId]) {
+      const existing = prev[taskId];
+      if (!existing) {
         return prev;
       }
       const next = { ...prev };
       delete next[taskId];
+
+      (async () => {
+        try {
+          await apiDeleteTask(taskId);
+        } catch (error) {
+          console.error('Не удалось удалить задачу', error);
+          if (!isMountedRef.current) {
+            return;
+          }
+          setTasks((latest) => ({
+            ...latest,
+            [taskId]: existing,
+          }));
+        }
+      })();
+
       return next;
     });
   }, []);
@@ -442,12 +633,36 @@ export function useTaskStore() {
         return prev;
       }
       const nextTimeSpent = (current.timeSpentSeconds ?? 0) + seconds;
+      const optimistic: Task = {
+        ...current,
+        timeSpentSeconds: nextTimeSpent,
+      };
+
+      (async () => {
+        try {
+          const updated = await apiUpdateTask(taskId, { timeSpentSeconds: nextTimeSpent });
+          if (!isMountedRef.current) {
+            return;
+          }
+          setTasks((latest) => ({
+            ...latest,
+            [taskId]: updated,
+          }));
+        } catch (error) {
+          console.error('Не удалось обновить затраченное время', error);
+          if (!isMountedRef.current) {
+            return;
+          }
+          setTasks((latest) => ({
+            ...latest,
+            [taskId]: current,
+          }));
+        }
+      })();
+
       return {
         ...prev,
-        [taskId]: {
-          ...current,
-          timeSpentSeconds: nextTimeSpent,
-        },
+        [taskId]: optimistic,
       };
     });
   }, []);
@@ -457,9 +672,22 @@ export function useTaskStore() {
   }, [moveTask]);
 
   const clearCorruptedState = useCallback(() => {
-    clearState();
-    setTasks({});
-    setLoadError(undefined);
+    (async () => {
+      try {
+        await apiClearTasks();
+        if (!isMountedRef.current) {
+          return;
+        }
+        setTasks({});
+        setLoadError(undefined);
+      } catch (error) {
+        console.error('Не удалось очистить базу задач', error);
+        if (!isMountedRef.current) {
+          return;
+        }
+        setLoadError(error instanceof Error ? error : new Error('Не удалось очистить базу задач'));
+      }
+    })();
   }, []);
 
   const quadrants = useMemo(() => {
